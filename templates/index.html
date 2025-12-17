@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxWarden - Cyber Security</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-fire-flame-simple logo-icon"></i>
+            <span>LuxWarden</span>
+        </div>
+        <div class="nav-links">
+            <a href="#">Home</a>
+            <a href="#">Features</a>
+            <a href="#">Pricing</a>
+            <a href="#">Contact</a>
+        </div>
+        <div class="auth-buttons">
+            <a href="#" class="btn-signin">Sign In</a>
+            <a href="#" class="btn-register">Register</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Protect Your <br> <span class="gradient-text">Applications</span> with <br> LuxWarden</h1>
+            <p class="hero-desc">
+                Enterprise-grade Web Application Firewall that provides comprehensive protection against cyber threats. Monitor, block, and analyze attacks in real-time with our intelligent security platform.
+            </p>
+            <div class="hero-btns">
+                <button class="btn-primary"><i class="fa-solid fa-arrow-right"></i> Get Started</button>
+                <button class="btn-secondary"><i class="fa-solid fa-play"></i> Watch Demo</button>
+            </div>
+        </div>
+        <div class="hero-image">
+            <div class="image-wrapper">
+                <img src="https://img.freepik.com/free-vector/dark-gradient-background-with-copy-space_53876-99549.jpg?t=st=1708450000~exp=1708453600~hmac=fake_signature_for_demo_shield_effect" alt="Security Shield Background" class="glow-bg">
+                <div class="shield-overlay">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="features-header">
+            <h2>Comprehensive <span class="gradient-text">Security Features</span></h2>
+            <p>Advanced protection capabilities designed to safeguard your web applications against evolving cyberthreats.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="icon-box">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <h3>SQL <span class="highlight">Injection</span></h3>
+                <p>LuxWarden protects your data from SQL injection attacks by filtering malicious inputs and securing database queries.</p>
+                <span class="sub-note">It Ensures your website stays safe from unauthorized access and data breaches.</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon-box">
+                    <i class="fa-solid fa-file-code"></i>
+                </div>
+                <h3>XSS <span class="highlight">Cross-site Scripting</span></h3>
+                <p>LuxWarden prevents attackers from injecting malicious scripts into your pages, keeping users' data and sessions safe.</p>
+                <span class="sub-note">Sanitizes and escapes output plus enforces Content Security Policy to stop XSS exploits.</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon-box">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h3>IP <span class="highlight">Blocking</span> & Rate Limiting</h3>
+                <p>LuxWarden blocks suspicious IPs and limits excessive requests to prevent abuse and server overload.</p>
+                <span class="sub-note">Ensures smooth performance and enhanced security against brute-force and DDoS attacks.</span>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon-box">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h3>Interactive <span class="highlight">Dashboard</span></h3>
+                <p>LuxWarden provides a real-time, interactive dashboard to monitor website traffic and security events.</p>
+                <span class="sub-note">Gives you clear insights and control over your site's protection status.</span>
+            </div>
+        </div>
+    </section>
+
+</body>
+</html>
