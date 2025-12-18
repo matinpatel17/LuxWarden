@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxWarden - Register</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS STYLES (Internal) --- */
+        :root {
+            --color-dark-bg: #0d001a;
+            --color-card-bg: #1c0f2a;
+            --color-primary-purple: #9b59b6;
+            --color-text-light: #ecf0f1;
+            --color-text-faded: #bdc3c7;
+            --color-input-bg: #130a21;
+            --gradient-purple: linear-gradient(90deg, #bb76ff, #ff7b9f);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--color-dark-bg);
+            color: var(--color-text-light);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Subtle Purple Glow Background Effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at top right, rgba(155, 89, 182, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at bottom left, rgba(142, 68, 173, 0.1) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 8%;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .logo-icon {
+            width: 32px;
+            margin-right: 10px;
+            filter: drop-shadow(0 0 5px var(--color-primary-purple));
+        }
+
+        nav a {
+            color: var(--color-text-faded);
+            text-decoration: none;
+            margin-left: 25px;
+            font-size: 0.95rem;
+        }
+
+        .btn-signin-nav {
+            background: var(--color-primary-purple);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .btn-register-nav {
+            background: white;
+            color: black;
+            padding: 8px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* --- Main Content --- */
+        .register-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .brand-title {
+            font-size: 3.5rem;
+            margin-bottom: 30px;
+            background: var(--gradient-purple);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .register-card {
+            background-color: var(--color-card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid rgba(155, 89, 182, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .register-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            color: #bb76ff;
+        }
+
+        .register-card form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .register-card input {
+            background-color: var(--color-input-bg);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 20px;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        .btn-submit {
+            background: var(--gradient-purple);
+            color: white;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- Footer --- */
+        footer {
+            padding: 60px 8% 30px;
+            background-color: rgba(28, 15, 42, 0.5);
+            margin-top: 80px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 40px;
+        }
+
+        .footer-left h3 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .btn-contact-footer {
+            background: var(--color-primary-purple);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+
+        .footer-nav-links a {
+            color: var(--color-text-faded);
+            text-decoration: none;
+            margin-right: 20px;
+            font-size: 0.9rem;
+        }
+
+        .contact-details {
+            margin-top: 30px;
+        }
+
+        .contact-item { margin-bottom: 15px; }
+        .contact-label { color: var(--color-primary-purple); font-size: 0.75rem; font-weight: 700; }
+
+        .footer-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .quote {
+            color: var(--color-text-faded);
+            font-style: italic;
+            border-left: 2px solid var(--color-primary-purple);
+            padding-left: 15px;
+            line-height: 1.6;
+        }
+
+        .copyright {
+            color: var(--color-text-faded);
+            font-size: 0.8rem;
+            margin-top: 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .footer-grid { grid-template-columns: 1fr; }
+            .footer-right { text-align: left; }
+            nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" stroke="white"></rect>
+                <path d="M3 9h18M3 15h18M9 9v6M15 3v6M15 15v6" stroke="white"></path>
+            </svg>
+            LuxWarden
+        </div>
+        <nav>
+            <a href="#">Home</a>
+            <a href="#">Features</a>
+            <a href="#">Pricing</a>
+            <a href="#">Contact</a>
+        </nav>
+        <div>
+            <button class="btn-signin-nav">Sign in</button>
+            <button class="btn-register-nav">Register</button>
+        </div>
+    </header>
+
+    <main class="register-container">
+        <h1 class="brand-title">Register</h1>
+
+        <div class="register-card">
+            <h2>Create Account</h2>
+            <form>
+                <input type="text" placeholder="Full Name" required>
+                <input type="email" placeholder="Email" required>
+                <input type="tel" placeholder="Phone Number">
+                <input type="password" placeholder="Password" required>
+                <input type="password" placeholder="Confirm Password" required>
+                <button type="submit" class="btn-submit">
+                    Register <span>&rarr;</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-left">
+                <h3>Do you have any Questions?</h3>
+                <p>Feel free to send us your questions or Feedback</p>
+                <button class="btn-contact-footer">Contact us</button>
+                
+                <div class="footer-nav-links">
+                    <a href="#">Home</a>
+                    <a href="#">Feature</a>
+                    <a href="#">Pricing</a>
+                    <a href="#">Contact</a>
+                </div>
+
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <p class="contact-label">SIGN UP</p>
+                        <p>+1 880 123-52-81</p>
+                    </div>
+                    <div class="contact-item">
+                        <p class="contact-label">EMAIL</p>
+                        <p>luxwardensupport@gmail.com</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-right">
+                <p class="quote">
+                    / It is necessary to secure your Web Application or Website in today's hackable Era.
+                </p>
+                <div>
+                    <h2 style="font-size: 1.5rem;">LuxWarden</h2>
+                    <p style="font-size: 0.8rem; color: #bdc3c7;">Get your Web App Secured Affordably.</p>
+                    <p class="copyright">&copy; 2025 — Copyright</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
