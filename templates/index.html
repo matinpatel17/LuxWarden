@@ -15,10 +15,10 @@
             <span>LuxWarden</span>
         </div>
         <div class="nav-links">
-            <a href="#">Home</a>
-            <a href="#">Features</a>
-            <a href="#">Pricing</a>
-            <a href="#">Contact</a>
+            <a href="#Home">Home</a>
+            <a href="#Features">Features</a>
+            <a href="#Pricing">Pricing</a>
+            <a href="#Contact">Contact</a>
         </div>
         <div class="auth-buttons">
             <a href="{{ url_for('signin') }}" class="btn-signin">Sign In</a>
@@ -26,7 +26,7 @@
         </div>
     </nav>
 
-    <section class="hero">
+    <section class="hero" id="Home">
         <div class="hero-content">
             <h1>Protect Your <br> <span class="gradient-text">Applications</span> with <br> LuxWarden</h1>
             <p class="hero-desc">
@@ -39,15 +39,15 @@
         </div>
         <div class="hero-image">
             <div class="image-wrapper">
-                <img src="https://img.freepik.com/free-vector/dark-gradient-background-with-copy-space_53876-99549.jpg?t=st=1708450000~exp=1708453600~hmac=fake_signature_for_demo_shield_effect" alt="Security Shield Background" class="glow-bg">
-                <div class="shield-overlay">
+                <img src="{{ url_for('static', filename='images/Shield.png') }}" alt="Security Shield Background" class="glow-bg">
+                <!--<div class="shield-overlay">
                     <i class="fa-solid fa-shield-halved"></i>
-                </div>
+                </div>-->
             </div>
         </div>
     </section>
 
-    <section class="features">
+    <section class="features" id="Features">
         <div class="features-header">
             <h2>Comprehensive <span class="gradient-text">Security Features</span></h2>
             <p>Advanced protection capabilities designed to safeguard your web applications against evolving cyberthreats.</p>
@@ -91,6 +91,82 @@
             </div>
         </div>
     </section>
+<section class="how-it-works">
+        <div class="section-header">
+            <h2>How Lux<span class="gradient-text">Warden</span> Works</h2>
+        </div>
+        <img src="{{ url_for('static', filename='images/howluxwardenworks.png') }}" alt="How LuxWarden Works" class="how-it-workslux">
 
+    </section>
+    <!--Pricing Section-->
+    <section class="pricing" id="Pricing">
+        <div class="section-header">
+            <h2>Plans <span class="gradient-text">and</span> Pricing</h2>
+        </div>
+
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <h3 class="plan-name">Basic</h3>
+                <div class="price">₹0 <span class="period">/Free for One week</span></div>
+                
+                <a href="#" class="btn-price-basic">Try Now</a>
+
+                <ul class="features-list">
+                    <li><i class="fa-regular fa-circle-check"></i> SQL Injection</li>
+                    <li><i class="fa-regular fa-circle-check"></i> Cross Site Scripting</li>
+                    <li><i class="fa-regular fa-circle-check"></i> IP Blocking & Rate Limiting</li>
+                </ul>
+            </div>
+
+            <div class="pricing-card pro-card">
+                <h3 class="plan-name highlight">Pro</h3>
+                <div class="price">₹499 <span class="period">/Month</span></div>
+                
+                <a href="#" class="btn-price-pro">Subscribe</a>
+
+                <ul class="features-list">
+                    <li><i class="fa-solid fa-shield-halved"></i> SQL Injection</li>
+                    <li><i class="fa-solid fa-shield-halved"></i> Cross Site Scripting</li>
+                    <li><i class="fa-solid fa-shield-halved"></i> IP Blocking & Rate Limiting</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+    <br>
+    <br> 
+    <br>
+    <br>     
+    <footer>
+        <div class="footer-content" id="Contact">
+            <div class="footer-left">
+                <h3>Do you have <br>
+                     any Questions?</h3>
+                <p>Feel free to send us your questions or feedback.</p>
+                <a href="#" class="btn-contact">Contact us</a>
+                
+                <div class="footer-links">
+                    <a href="#Home">Home</a>
+                    <a href="#Features">Features</a>
+                    <a href="#Pricing">Pricing</a>
+                    <a href="#Contact">Contact</a>
+                </div>
+
+                <div class="contact-details">
+                    <p>+91 992-456-89-90</p>
+                    <p>luxwardensupport@gmail.com</p>
+                </div>
+            </div>
+
+            <div class="footer-right">
+                <div class="footer-quote">
+                    "It is necessary to secure your Web Application or Website in today's hackable Era."
+                </div>
+                <div class="footer-logo">
+                    <h4>Lux<span class="highlight">Warden</span></h4>
+                    <p>&copy; 2025 - Copyright</p>
+                </div>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
