@@ -164,8 +164,8 @@ body {
 }
 
 .image-wrapper {
-    width: 450px;
-    height: 300px;
+    width: 550px;
+    height: 335px;
     background: #0f111a;
     border: 1px solid #334155;
     border-radius: 20px;
@@ -177,14 +177,14 @@ body {
     box-shadow: 0 0 50px rgba(99, 102, 241, 0.15);
 }
 
-.shield-overlay i {
+/*.shield-overlay i {
     font-size: 8rem;
     background: linear-gradient(180deg, #d946ef, #6366f1);
     background-clip: text; 
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.6));
     animation: float 3s ease-in-out infinite;
-}
+}*/
 
 @keyframes float {
     0% { transform: translateY(0px); }
@@ -315,4 +315,202 @@ body {
         margin-top: 50px;
         width: 100%;
     }
+}
+
+/*how its works*/
+/* --- How It Works (Workflow Diagram) --- */
+.how-it-works {
+    padding: 80px 8%;
+    background-color: #050511;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.section-header h2 {
+    font-size: 2.5rem;
+}
+
+.workflow-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 40px;
+}
+.how-it-workslux {
+   display: block;
+    margin-left:auto ;
+    margin-right:auto ;
+    width: 80%;
+    height: 20%;
+}
+
+/* --- Pricing Section --- */
+.pricing {
+    padding: 80px 8%;
+    background-color: #02020a; /* Slightly darker */
+}
+
+.pricing-grid {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.pricing-card {
+    background: #0e0e16;
+    border: 1px solid #1e293b;
+    border-radius: 16px;
+    padding: 40px;
+    width: 300px;
+    height: 500px;
+    position: relative;
+    transition: transform 0.3s ease;
+}
+
+.pricing-card:hover {
+    transform: translateY(-10px);
+    border-color: #6366f1;
+}
+
+.pro-card {
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.05) 0%, #0e0e16 100%);
+    border-color: #6366f1;
+}
+
+.plan-name {
+    font-size: 1.5rem;
+    color: #a855f7;
+    margin-bottom: 15px;
+}
+
+.price {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.period {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+/* Pricing Buttons */
+.btn-price-basic, .btn-price-pro {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 600;
+    margin-bottom: 30px;
+}
+
+.btn-price-basic {
+    background: #334155;
+    color: white;
+}
+
+.btn-price-pro {
+    background: #6366f1;
+    color: white;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+}
+
+.features-list li {
+    margin-bottom: 15px;
+    color: #cbd5e1;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.features-list li i {
+    color: #a855f7;
+}
+
+/* --- Footer --- */
+footer {
+    padding: 60px 8%;
+    background: #000000;
+    border-top: 1px solid #1e293b;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 40px;
+}
+
+.footer-left h3 {
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+}
+
+.footer-left p {
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+.btn-contact {
+    background: #895AF6;
+    color: white;
+    padding: 8px 25px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 30px;
+}
+
+.footer-links {
+    margin-bottom: 30px;
+}
+
+.footer-links a {
+    color: #94a3b8;
+    text-decoration: none;
+    margin-right: 20px;
+    font-size: 0.9rem;
+}
+
+.footer-links a:hover { color: rgb(209, 72, 175); }
+
+.contact-details p {
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+}
+
+.footer-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: right;
+    max-width: 300px;
+}
+
+.footer-quote {
+    font-style: italic;
+    color: #64748b;
+    font-size: 0.9rem;
+    border-left: 2px solid #6366f1;
+    padding-left: 15px;
+    margin-bottom: 30px;
+}
+
+.footer-logo h4 {
+    font-size: 1.4rem;
+    margin-bottom: 5px;
 }
