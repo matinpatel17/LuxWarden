@@ -1,22 +1,25 @@
+
 from flask import Flask, render_template
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html")
+    return render_template('index.html')
 
-@app.route("/signin", methods=["GET", "POST"])
+@app.route('/signin')
 def signin():
-    return render_template("signin.html")
+        return render_template('signin.html')
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route('/register')
 def register():
-    return render_template("register.html")
-    
-if __name__ == "__main__":
+        return render_template('register.html')
+
+@app.route('/payment')
+def payment():
+        return render_template('payment.html')
+
+
+if __name__ == '__main__':
     app.run(debug=True)
-
-
-
 
