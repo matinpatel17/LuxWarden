@@ -22,7 +22,7 @@
         </div>
         <div class="auth-buttons">
             <a href="{{ url_for('signin') }}" class="btn-signin">Sign In</a>
-            <a href="#" class="btn-register">Register</a>
+            <a href="{{ url_for('register') }}" class="btn-register">Register</a>
         </div>
     </nav>
 
@@ -122,7 +122,7 @@
                 <h3 class="plan-name highlight">Pro</h3>
                 <div class="price">₹499 <span class="period">/Month</span></div>
                 
-                <a href="#" class="btn-price-pro">Subscribe</a>
+                <a href="{{ url_for('payment') }}" class="btn-price-pro">Subscribe</a>
 
                 <ul class="features-list">
                     <li><i class="fa-solid fa-shield-halved"></i> SQL Injection</li>
