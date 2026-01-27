@@ -3,79 +3,560 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LuxWarden - Sign in</title>
-    <link rel="stylesheet" href="C:\Users\bangb\Desktop\styles.css\style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>LuxWarden - Sign In</title>
+    <style>
+        /* =========================================
+           1. CSS RESET & VARIABLES
+           ========================================= */
+        :root {
+            --bg-dark: #050511;
+            --card-bg: rgba(22, 22, 36, 0.7);
+            --primary-purple: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+            --border-light: rgba(255, 255, 255, 0.1);
+            --gradient-text: linear-gradient(90deg, #a78bfa, #8b5cf6, #d946ef);
+            --gradient-btn: linear-gradient(90deg, #7c3aed, #9333ea);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* =========================================
+           2. BACKGROUND GLOWS (Ambient Light)
+           ========================================= */
+        .ambient-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .glow-1 { top: -100px; left: -100px; background: #4c1d95; }
+        .glow-2 { bottom: 20%; right: -100px; background: #312e81; }
+
+        /* =========================================
+           3. HEADER SECTION
+           ========================================= */
+       header {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            border-bottom: 1px solid var(--border-light);
+            background: rgba(5, 5, 17, 0.9);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .logo-svg {
+            width: 32px;
+            height: 32px;
+            transition: transform 0.3s ease;
+        }
+        .logo-group:hover .logo-svg {
+            transform: scale(1.05);
+        }
+
+        .nav-links {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .nav-item a:hover {
+            color: var(--text-main);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+        .btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        .btn-primary-small {
+            background: var(--primary-purple);
+            color: white;
+        }
+        .btn-primary-small:hover {
+            background: var(--primary-hover);
+        }
+        .btn-ghost {
+            background: white;
+            color: black;
+        }
+        .btn-ghost:hover {
+            background: #f3f4f6;
+        }
+
+        /* Mobile Hamburger */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            cursor: pointer;
+        }
+        .bar {
+            width: 25px;
+            height: 2px;
+            background: white;
+        }
+
+        /* =========================================
+           4. MAIN LOGIN CONTENT
+           ========================================= */
+        main {
+            flex: 1; /* Pushes footer down */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 140px 20px 80px; /* Space for header */
+            text-align: center;
+        }
+
+        .brand-header {
+            margin-bottom: 30px;
+        }
+        .brand-title {
+            font-size: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .brand-subtitle {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+        }
+        .page-heading {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 40px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+        }
+        .card-heading {
+            text-align: left;
+            font-size: 1.4rem;
+            color: #a78bfa;
+            margin-bottom: 25px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .form-input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-light);
+            padding: 14px 16px;
+            border-radius: 6px;
+            color: white;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .form-input:focus {
+            border-color: var(--primary-purple);
+        }
+
+        /* --- NEW STYLES FOR FORGOT PASSWORD --- */
+        .form-extras {
+            display: flex;
+            justify-content: flex-end; /* Aligns link to the right */
+            margin-bottom: 20px;       /* Space between link and login button */
+            margin-top: -10px;         /* Pulls it slightly closer to password field */
+        }
+        .forgot-link {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        .forgot-link:hover {
+            color: var(--primary-purple); /* Glows purple on hover */
+            text-decoration: underline;
+        }
+        /* -------------------------------------- */
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--gradient-btn);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+            transition: opacity 0.3s;
+        }
+        .btn-submit:hover {
+            opacity: 0.9;
+        }
+
+        /* =========================================
+           5. FOOTER SECTION
+           ========================================= */
+        footer {
+            border-top: 1px solid var(--border-light);
+            padding: 80px 5% 40px;
+            background-color: var(--bg-dark);
+            position: relative;
+            z-index: 10;
+        }
+
+        .footer-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 40px;
+        }
+
+        /* Left Side */
+        .footer-left {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .footer-heading {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+        .footer-subtext {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+        .btn-contact {
+            background-color: #8b5cf6;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px; /* Pill shape */
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-bottom: 40px;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        .btn-contact:hover {
+            background-color: #7c3aed;
+        }
+
+        .footer-nav {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+            margin-bottom: 40px;
+        }
+        .footer-nav a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.3s;
+        }
+        .footer-nav a:hover {
+            color: white;
+        }
+
+        .contact-details {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .contact-group h4 {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .contact-group p {
+            font-size: 1rem;
+            color: white;
+        }
+
+        /* Right Side */
+        .footer-right {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        .quote-box {
+            display: flex;
+            gap: 15px;
+            max-width: 400px;
+            text-align: left;
+        }
+        .quote-bar {
+            width: 4px;
+            background-color: #8b5cf6;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .quote-text {
+            color: var(--text-muted);
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .footer-branding {
+            margin-top: 60px;
+        }
+        .footer-logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .footer-logo span {
+            color: #8b5cf6;
+        }
+        .footer-tagline {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        .copyright {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* =========================================
+           6. RESPONSIVE QUERIES
+           ========================================= */
+        @media (max-width: 900px) {
+            header { padding: 0 20px; }
+            .nav-links, .header-actions { display: none; }
+            .hamburger { display: flex; }
+            
+            .footer-container {
+                flex-direction: column;
+            }
+            .footer-right {
+                align-items: flex-start;
+                text-align: left;
+            }
+            .footer-branding {
+                margin-top: 40px;
+            }
+        }
+    </style>
 </head>
 <body>
 
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
     <header>
-        <div class="logo">
-            <img src="C:\Users\bangb\Desktop\index.html" alt="Firewall Icon" class="logo-icon">
-            <span class="logo-text">LuxWarden</span>
+        <div class="logo-group">
+            <svg class="logo-svg" viewBox="0 0 40 40" fill="none">
+                <path d="M4 14H12V20H4V14Z" fill="white"/>
+                <path d="M14 14H22V20H14V14Z" fill="white"/>
+                <path d="M8 22H18V28H8V22Z" fill="white"/>
+                <path d="M4 22H6V28H4V22Z" fill="white"/>
+                <path d="M26 12C26 12 32 8 32 18C32 23 29 27 25 27" fill="#8b5cf6"/>
+                <path d="M25 10C25 10 34 5 34 18C34 25 29 30 25 30" fill="#7c3aed" fill-opacity="0.5"/>
+            </svg>
         </div>
-        <nav>
-            <a href="#">Home</a>
-            <a href="#">Features</a>
-            <a href="#">Pricing</a>
-            <a href="#">Contact</a>
-        </nav>
+        <div class="nav-links"  >
+            <li class="nav-item"><a href="#">Home</a></li>
+            <li class="nav-item"><a href="#">Features</a></li>
+            <li class="nav-item"><a href="#">Pricing</a></li>
+            <li class="nav-item"><a href="#">Contact</a></li>
+        </div>
         <div class="header-actions">
-            <button class="btn-signin">Sign in</button>
-            <button class="btn-register">Register</button>
+            <button class="btn btn-primary-small">Sign in</button>
+            <button class="btn btn-ghost">Register</button>
+        </div>
+        <div class="hamburger">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
         </div>
     </header>
 
-    <main class="signin-container">
-        <h1>Sign in</h1>
+    <main>
+        <div class="brand-header">
+            <div class="brand-title">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                    <rect x="2" y="6" width="10" height="12" rx="1" fill="white"/>
+                    <path d="M14 6H18V18H14V6Z" fill="white" fill-opacity="0.5"/>
+                    <path d="M16 10C16 10 21 8 21 14C21 17 19 20 16 20" fill="#a855f7"/>
+                    <path d="M16 8C16 8 23 4 23 14C23 19 19 23 16 23" fill="#8b5cf6" fill-opacity="0.5"/>
+                </svg>
+                LuxWarden
+            </div>
+            <p class="brand-subtitle">Secure access to your firewall management</p>
+            <h1 class="page-heading">Sign in</h1>
+        </div>
 
-        <div class="signin-card">
-            <h2>Welcome Back</h2>
-            <form>
-                <input type="email" placeholder="Email" required>
-                <input type="password" placeholder="Password" required>
-                <button type="submit" class="btn-login">
-                    Login &rarr;
+        <div class="login-card">
+            <h2 class="card-heading">Welcome Back</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <input type="email" name="email" class="form-input" placeholder="Email" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="password" class="form-input" placeholder="Password" required>
+                </div>
+
+                <div class="form-extras">
+                    <a href="#" class="forgot-link">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    Login 
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+                        <path d="M12 15l-3-3a22 22 0 0 1 2-9.5a10 10 0 0 1 10 10a22 22 0 0 1-9.5 2z"></path>
+                        <path d="M12 15l-3 3"></path>
+                        <path d="M15 12l3-3"></path>
+                    </svg>
                 </button>
             </form>
         </div>
-        <p class="tagline">Secure access to your firewall management</p>
     </main>
 
     <footer>
-        <div class="footer-content">
+        <div class="footer-container">
+            
             <div class="footer-left">
-                <h3>Do you have any Questions?</h3>
-                <p>Feel free to send us your questions or Feedback</p>
+                <h2 class="footer-heading">Do you have<br>any Questions?</h2>
+                <p class="footer-subtext">Feel free to send us your questions or Feedback</p>
+                
                 <button class="btn-contact">Contact us</button>
 
-                <div class="footer-links">
-                    <a href="#">Home</a>
-                    <a href="#">Feature</a>
-                    <a href="#">Pricing</a>
-                    <a href="#">Contact</a>
-                </div>
-                
-                <div class="contact-info">
-                    <p class="label">LIVE CHAT</p>
-                    <p class="value">+91 9875469875</p>
-                    <p class="label">EMAIL</p>
-                    <p class="value">luxwardensupport@gmail.com</p>
+                <ul class="footer-nav">
+                    <li><a href="#">Home</a></li>
+                    <li><a href="#">Feature</a></li>
+                    <li><a href="#">Pricing</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+
+                <div class="contact-details">
+                    <div class="contact-group">
+                        <h4>SIGN UP</h4>
+                        <p>+1 890 123-52-61</p>
+                    </div>
+                    <div class="contact-group">
+                        <h4>EMAIL</h4>
+                        <p>luxwardensupport@gmail.com</p>
+                    </div>
                 </div>
             </div>
 
             <div class="footer-right">
-                <blockquote class="quote">
-                    / It is necessary to secure your Web Application or Website in today's Hackable Era.
-                </blockquote>
-                <div class="logo-and-copyright">
-                    <div class="logo">LuxWarden</div>
-                    <p class="subtitle">Use your sites maximum security</p>
-                    <p class="copyright">&copy; 2025 — EasyLight</p>
+                <div class="quote-box">
+                    <div class="quote-bar"></div>
+                    <p class="quote-text">It is necessary to secure your Web Application or Website in today’s hackable Era.</p>
+                </div>
+
+                <div class="footer-branding">
+                    <h3 class="footer-logo">Lux<span>Warden</span></h3>
+                    <p class="footer-tagline">Get your Web App Secured Affordably.</p>
+                    <p class="copyright">© 2026 — Copyright</p>
                 </div>
             </div>
+
         </div>
     </footer>
-    
+
+    <script>
+        // Simple Interaction Logic
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.querySelector('.btn-submit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Processing...';
+            setTimeout(() => {
+                alert('Login functionality would run here.');
+                btn.innerHTML = originalText;
+            }, 1000);
+        });
+
+        // Optional: Alert for forgot password click
+        document.querySelector('.forgot-link').addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Redirect to password reset page.');
+        });
+    </script>
+
 </body>
 </html>
