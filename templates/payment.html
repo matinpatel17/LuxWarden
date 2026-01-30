@@ -109,6 +109,7 @@
             gap: 15px;
         }
         .btn {
+            text-decoration: none;
             padding: 8px 20px;
             border-radius: 6px;
             font-size: 0.9rem;
@@ -244,9 +245,7 @@
             transition: border-color 0.3s;
         }
         
-        /* This ensures the calendar picker for both Date of Birth 
-           and Expiry Month matches the dark theme.
-        */
+        /* Dark mode calendar fix */
         .form-input[type="date"],
         .form-input[type="month"] {
             color-scheme: dark;
@@ -254,6 +253,31 @@
 
         .form-input:focus {
             border-color: var(--primary-purple);
+        }
+
+        /* --- Alerts (From Code 2) --- */
+        .success-message {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .error-message {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+            font-size: 0.9rem;
         }
 
         .btn-submit {
@@ -312,6 +336,7 @@
             font-size: 1rem;
         }
         .btn-contact {
+            text-decoration: none;
             background-color: #8b5cf6;
             color: white;
             padding: 12px 30px;
@@ -450,14 +475,14 @@
             </svg>
         </div>
         <div class="nav-links">
-            <li class="nav-item"><a href="#">Home</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
             <li class="nav-item"><a href="#">Features</a></li>
             <li class="nav-item"><a href="#">Pricing</a></li>
-            <li class="nav-item"><a href="#">Contact</a></li>
+            <li class="nav-item"><a href="{{ url_for('contact') }}">Contact</a></li>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary-small">Sign in</button>
-            <button class="btn btn-ghost">Register</button>
+            <a href="{{ url_for('signin') }}" class="btn btn-primary-small">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-ghost">Register</a>
         </div>
         <div class="hamburger">
             <div class="bar"></div>
@@ -482,19 +507,32 @@
 
         <div class="payment-card">
             <h2 class="card-heading">Checkout</h2>
+
+            {% if success %}
+                <div class="success-message">
+                    ✅ Payment details saved successfully!
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="error-message">
+                    ❌ {{ error }}
+                </div>
+            {% endif %}
             
-            <form id="paymentForm">
-                
+            <form id="paymentForm" action="/payment" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
                 <div class="section-label">Personal Details</div>
                 
                 <div class="input-group">
-                    <input type="text" name="fullname" class="form-input" placeholder="Full Name" required>
+                    <input type="text" name="full_name" class="form-input" placeholder="Full Name" required>
                 </div>
 
                 <div class="form-row">
                     <div class="input-group">
                         <label style="color: #9ca3af; font-size: 0.8rem; display: block; margin-bottom: 5px;">Date of Birth</label>
-                        <input type="date" name="dob" class="form-input" required>
+                        <input type="date" name="date_of_birth" class="form-input" required>
                     </div>
                     <div class="input-group">
                         <label style="color: #9ca3af; font-size: 0.8rem; display: block; margin-bottom: 5px;">Phone</label>
@@ -507,32 +545,32 @@
                 </div>
 
                 <div class="input-group">
-                    <input type="text" name="address" class="form-input" placeholder="Billing Address" required>
+                    <input type="text" name="billing_address" class="form-input" placeholder="Billing Address" required>
                 </div>
 
                 <div class="section-label section-gap">Payment Information</div>
 
                 <div class="input-group">
-                    <input type="text" name="cardholder" class="form-input" placeholder="Card Holder Name" required>
+                    <input type="text" name="card_holder_name" class="form-input" placeholder="Card Holder Name" required>
                 </div>
 
                 <div class="input-group">
-                    <input type="text" name="cardnumber" class="form-input" placeholder="Card Number (0000 0000 0000 0000)" maxlength="19" required>
+                    <input type="text" name="card_number" id="cardNumber" class="form-input" placeholder="Card Number (0000 0000 0000 0000)" maxlength="19" required>
                 </div>
 
                 <div class="form-row">
                     <div class="input-group">
                         <label style="color: #9ca3af; font-size: 0.8rem; display: block; margin-bottom: 5px;">Expiry (Month/Year)</label>
-                        <input type="month" name="expiry" class="form-input" required>
+                        <input type="month" name="card_expiry" class="form-input" required>
                     </div>
                     <div class="input-group">
                         <label style="color: #9ca3af; font-size: 0.8rem; display: block; margin-bottom: 5px;">CVV</label>
-                        <input type="password" name="cvc" class="form-input" placeholder="CVV" maxlength="4" required>
+                        <input type="password" name="cvv" id="cvv" class="form-input" placeholder="CVV" maxlength="3" required>
                     </div>
                 </div>
 
-                <button type="submit" class="btn-submit">
-                    Complete Payment
+                <button type="submit" class="btn-submit" id="payBtn">
+                    Complete Payment &nbsp;
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                         <line x1="1" y1="10" x2="23" y2="10"></line>
@@ -549,23 +587,23 @@
                 <h2 class="footer-heading">Do you have<br>any Questions?</h2>
                 <p class="footer-subtext">Feel free to send us your questions or Feedback</p>
                 
-                <button class="btn-contact">Contact us</button>
+                <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
 
                 <ul class="footer-nav">
-                    <li><a href="#">Home</a></li>
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
                     <li><a href="#">Feature</a></li>
                     <li><a href="#">Pricing</a></li>
-                    <li><a href="#">Contact</a></li>
+                    <li><a href="{{ url_for('contact') }}">Contact</a></li>
                 </ul>
 
                 <div class="contact-details">
                     <div class="contact-group">
-                        <h4>SIGN UP</h4>
-                        <p>+1 890 123-52-61</p>
+                        <h4>Contact No</h4>
+                        <p>+91 9173233009</p>
                     </div>
                     <div class="contact-group">
                         <h4>EMAIL</h4>
-                        <p>luxwardensupport@gmail.com</p>
+                        <p>support@luxwarden.com</p>
                     </div>
                 </div>
             </div>
@@ -579,7 +617,7 @@
                 <div class="footer-branding">
                     <h3 class="footer-logo">Lux<span>Warden</span></h3>
                     <p class="footer-tagline">Get your Web App Secured Affordably.</p>
-                    <p class="copyright">© 2026 — Copyright</p>
+                    <p class="copyright">©️ 2026 — Copyright</p>
                 </div>
             </div>
 
@@ -587,20 +625,37 @@
     </footer>
 
     <script>
-        // Simple Interaction Logic
-        document.getElementById('paymentForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = document.querySelector('.btn-submit');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = 'Processing Payment...';
-            setTimeout(() => {
-                alert('Payment Successful!');
-                btn.innerHTML = originalText;
-                document.getElementById('paymentForm').reset();
-            }, 1500);
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('paymentForm');
+            const cardNumber = document.getElementById('cardNumber');
+            const cvv = document.getElementById('cvv');
+            const payBtn = document.getElementById('payBtn');
+            const notification = document.getElementById('notification');
+
+            // 1. Format Card Number (Add space every 4 digits)
+            cardNumber.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                let formattedValue = '';
+                for (let i = 0; i < value.length; i++) {
+                    if (i > 0 && i % 4 === 0) {
+                        formattedValue += ' ';
+                    }
+                    formattedValue += value[i];
+                }
+                e.target.value = formattedValue;
+            });
+
+            // 2. Simple CVV restriction (Numbers only)
+            cvv.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '');
+            });
+
+            form.addEventListener('submit', (e) => {
+                payBtn.innerHTML = 'Processing...';
+                payBtn.disabled = true;
+                // Form will now actually submit to Flask!
+            });
         });
     </script>
-
 </body>
 </html>
