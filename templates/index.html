@@ -18,7 +18,7 @@
             <a href="#Home">Home</a>
             <a href="#Features">Features</a>
             <a href="#Pricing">Pricing</a>
-            <a href="#Contact">Contact</a>
+            <a href="{{ url_for('contact') }}">Contact</a>
         </div>
         <div class="auth-buttons">
             <a href="{{ url_for('signin') }}" class="btn-signin">Sign In</a>
@@ -33,8 +33,7 @@
                 Enterprise-grade Web Application Firewall that provides comprehensive protection against cyber threats. Monitor, block, and analyze attacks in real-time with our intelligent security platform.
             </p>
             <div class="hero-btns">
-                <button class="btn-primary"><i class="fa-solid fa-arrow-right"></i> Get Started</button>
-                <button class="btn-secondary"><i class="fa-solid fa-play"></i> Watch Demo</button>
+                <a href="{{ url_for('register') }}" class="btn-primary">Get Started</a>
             </div>
         </div>
         <div class="hero-image">
@@ -137,23 +136,23 @@
     <br>
     <br>     
     <footer>
-        <div class="footer-content" id="Contact">
+        <div class="footer-content">
             <div class="footer-left">
                 <h3>Do you have <br>
                      any Questions?</h3>
                 <p>Feel free to send us your questions or feedback.</p>
-                <a href="#" class="btn-contact">Contact us</a>
+                <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
                 
                 <div class="footer-links">
                     <a href="#Home">Home</a>
                     <a href="#Features">Features</a>
                     <a href="#Pricing">Pricing</a>
-                    <a href="#Contact">Contact</a>
+                    <a href="{{ url_for('contact') }}">Contact</a>
                 </div>
 
                 <div class="contact-details">
-                    <p>+91 992-456-89-90</p>
-                    <p>luxwardensupport@gmail.com</p>
+                    <p>+91 9173233009</p>
+                    <p>support@luxwarden.com</p>
                 </div>
             </div>
 
