@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxWarden - Dashboard</title>
+    <style>
+        /* =========================================
+           1. CSS VARIABLES (Matched to Sign-In Page)
+           ========================================= */
+        :root {
+            --bg-dark: #050511;
+            --card-bg: rgba(22, 22, 36, 0.6); 
+            --primary-purple: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+            --border-light: rgba(255, 255, 255, 0.1);
+            --gradient-text: linear-gradient(90deg, #a78bfa, #8b5cf6, #d946ef);
+            --gradient-btn: linear-gradient(90deg, #7c3aed, #9333ea);
+            
+            /* Skeleton Specific Colors (Dark Mode) */
+            --skeleton-base: rgba(255, 255, 255, 0.03);
+            --skeleton-highlight: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Inter, system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden; /* Prevent scrolling on the main body */
+        }
+
+        /* =========================================
+           2. AMBIENT GLOWS
+           ========================================= */
+        .ambient-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .glow-1 { top: -100px; left: -100px; background: #4c1d95; }
+        .glow-2 { bottom: 20%; right: -100px; background: #312e81; }
+
+        /* =========================================
+           3. SIDEBAR STYLING
+           ========================================= */
+        .sidebar {
+            width: 260px;
+            background: rgba(5, 5, 17, 0.5);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            z-index: 50;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        /* Fake Navigation Items (Skeleton) */
+        .nav-skeleton {
+            height: 40px;
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        /* =========================================
+           4. MAIN CONTENT AREA
+           ========================================= */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header */
+        header {
+            height: 80px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            background: rgba(5, 5, 17, 0.2);
+        }
+
+        .header-title-skeleton {
+            width: 150px;
+            height: 24px;
+            border-radius: 4px;
+        }
+
+        /* LOGOUT BUTTON STYLES */
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.1); /* Subtle Red tint */
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171; /* Red text */
+        }
+
+        /* Dashboard Internal Grid */
+        .dashboard-content {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            overflow-y: hidden; /* Hide scroll because it's WIP */
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .card-skeleton {
+            background: var(--card-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            height: 140px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 300px;
+        }
+
+        .big-chart-skeleton {
+            background: var(--card-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            height: 100%;
+        }
+
+        /* =========================================
+           5. SKELETON ANIMATION (The "Loading" Effect)
+           ========================================= */
+        .skeleton {
+            background: var(--skeleton-base);
+            /* Creating the shimmer effect */
+            background-image: linear-gradient(
+                90deg, 
+                var(--skeleton-base) 0px, 
+                var(--skeleton-highlight) 40px, 
+                var(--skeleton-base) 80px
+            );
+            background-size: 600px;
+            animation: shimmer 2s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -100px; }
+            40%, 100% { background-position: 200px; }
+        }
+
+        /* =========================================
+           6. WORK IN PROGRESS OVERLAY
+           ========================================= */
+        .wip-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Frosted glass covering the dashboard */
+            background: rgba(5, 5, 17, 0.6); 
+            backdrop-filter: blur(8px); 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .construction-card {
+            background: var(--card-bg); 
+            border: 1px solid rgba(139, 92, 246, 0.3); /* Purple border hint */
+            box-shadow: 0 0 40px rgba(139, 92, 246, 0.15);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+        }
+
+        .construction-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .construction-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: white;
+        }
+
+        .construction-card p {
+            color: var(--text-muted);
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        /* Styled Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 40%; /* Change this to update progress */
+            background: var(--gradient-btn);
+            border-radius: 3px;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background-image: linear-gradient(
+                -45deg, 
+                rgba(255, 255, 255, 0.2) 25%, 
+                transparent 25%, 
+                transparent 50%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                rgba(255, 255, 255, 0.2) 75%, 
+                transparent 75%, 
+                transparent
+            );
+            background-size: 20px 20px;
+            animation: stripes 1s linear infinite;
+        }
+
+        @keyframes stripes {
+            100% { background-position: 20px 20px; }
+        }
+
+        .status-labels {
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 0.8rem; 
+            color: #a78bfa; 
+            margin-bottom: 5px;
+        }
+
+        /* The NEW Button inside the construction card */
+        .btn-notify {
+            text-decoration: none;
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: var(--gradient-btn);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn-notify:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .stats-row { grid-template-columns: 1fr; }
+            .chart-row { grid-template-columns: 1fr; }
+            header { padding: 0 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <svg width="28" height="28" viewBox="0 0 40 40" fill="none" style="margin-right:10px;">
+                <rect x="2" y="6" width="10" height="12" rx="1" fill="white"/>
+                <path d="M14 6H18V18H14V6Z" fill="white" fill-opacity="0.5"/>
+                <path d="M16 10C16 10 21 8 21 14C21 17 19 20 16 20" fill="#a855f7"/>
+            </svg>
+            LuxWarden
+        </div>
+        
+        <div class="nav-skeleton skeleton"></div>
+        <div class="nav-skeleton skeleton"></div>
+        <div class="nav-skeleton skeleton"></div>
+        <div class="nav-skeleton skeleton"></div>
+        <div style="margin-top: auto;"></div>
+        <div class="nav-skeleton skeleton" style="width: 50%"></div>
+    </aside>
+
+    <div class="main-wrapper">
+        
+        <header>
+            <div class="header-title-skeleton skeleton"></div>
+            
+            <a href="{{ url_for('index') }}" class="logout-btn">
+                <span>Logout</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </a>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="stats-row">
+                <div class="card-skeleton skeleton"></div>
+                <div class="card-skeleton skeleton"></div>
+                <div class="card-skeleton skeleton"></div>
+                <div class="card-skeleton skeleton"></div>
+            </div>
+            <div class="chart-row">
+                <div class="big-chart-skeleton skeleton"></div>
+                <div class="big-chart-skeleton skeleton"></div>
+            </div>
+        </main>
+
+        <div class="wip-overlay">
+            <div class="construction-card">
+                <div class="construction-icon">🚧</div>
+                <h2>Dashboard In Progress</h2>
+                <p>We are currently building the analytics engine. Your secure firewall data will appear here shortly.</p>
+                
+                <div class="status-labels">
+                    <span>Development Status</span>
+                    <span>40% Complete</span>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-fill"></div>
+                </div>
+
+                <a href="{{ url_for('signin') }}" class="btn-notify" >
+                    Logout
+                </a>
+
+                <div style="font-size: 0.85rem; color: #64748b; margin-top: 20px;">
+                    Estimated Launch: Next Update
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
