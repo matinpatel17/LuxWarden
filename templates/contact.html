@@ -109,6 +109,7 @@
             gap: 15px;
         }
         .btn {
+            text-decoration: none;
             padding: 8px 20px;
             border-radius: 6px;
             font-size: 0.9rem;
@@ -157,28 +158,15 @@
             text-align: center;
         }
 
-        .brand-header {
-            margin-bottom: 30px;
-        }
-        .brand-title {
-            font-size: 2.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 10px;
-            font-weight: 500;
-        }
-        
         .page-heading {
             font-size: 3.5rem;
             font-weight: 800;
             color: white;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
         }
 
-        /* Specific style for the gradient word "touch" */
-        .highlight-text {
+        /* Highlight text gradient */
+        .page-heading span {
             background: var(--gradient-text);
             -webkit-background-clip: text;
             background-clip: text;
@@ -187,7 +175,7 @@
 
         .contact-card {
             width: 100%;
-            max-width: 500px; /* Slightly wider for the two-column layout */
+            max-width: 550px;
             background: var(--card-bg);
             backdrop-filter: blur(16px);
             border: 1px solid var(--border-light);
@@ -221,9 +209,10 @@
         }
         .form-row .input-group {
             flex: 1;
-            margin-bottom: 0; /* Remove margin since the row handles spacing */
+            margin-bottom: 0;
         }
 
+        /* Inputs reused from Code 1 style but adapted for logic */
         .form-input {
             width: 100%;
             background: rgba(255,255,255,0.05);
@@ -239,13 +228,13 @@
             border-color: var(--primary-purple);
         }
 
-        /* Textarea specific styling */
         textarea.form-input {
-            resize: vertical; /* Allow user to resize vertically only */
+            resize: vertical;
             min-height: 120px;
             font-family: inherit;
         }
 
+        /* Button Style from Code 1 */
         .btn-submit {
             width: 100%;
             padding: 12px;
@@ -265,6 +254,27 @@
         }
         .btn-submit:hover {
             opacity: 0.9;
+        }
+
+        /* ALERTS / MESSAGES (Imported from Code 2) */
+        .success-message {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            text-align: left;
+        }
+        .error-message {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: left;
         }
 
         /* =========================================
@@ -302,6 +312,7 @@
             font-size: 1rem;
         }
         .btn-contact {
+            text-decoration: none;
             background-color: #8b5cf6;
             color: white;
             padding: 12px 30px;
@@ -440,14 +451,14 @@
             </svg>
         </div>
         <div class="nav-links">
-            <li class="nav-item"><a href="#">Home</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
             <li class="nav-item"><a href="#">Features</a></li>
             <li class="nav-item"><a href="#">Pricing</a></li>
-            <li class="nav-item"><a href="#">Contact</a></li>
+            <li class="nav-item"><a href="{{ url_for('contact') }}">Contact</a></li>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary-small">Sign in</button>
-            <button class="btn btn-ghost">Register</button>
+            <a href="{{ url_for('signin') }}" class="btn btn-primary-small">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-ghost">Register</a>
         </div>
         <div class="hamburger">
             <div class="bar"></div>
@@ -457,47 +468,80 @@
     </header>
 
     <main>
-        <div class="brand-header">
-            <div class="brand-title">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                    <rect x="2" y="6" width="10" height="12" rx="1" fill="white"/>
-                    <path d="M14 6H18V18H14V6Z" fill="white" fill-opacity="0.5"/>
-                    <path d="M16 10C16 10 21 8 21 14C21 17 19 20 16 20" fill="#a855f7"/>
-                    <path d="M16 8C16 8 23 4 23 14C23 19 19 23 16 23" fill="#8b5cf6" fill-opacity="0.5"/>
-                </svg>
-                LuxWarden
-            </div>
-            <h1 class="page-heading">Get in <span class="highlight-text">touch</span></h1>
-        </div>
+        <h1 class="page-heading">Get in <span>touch</span></h1>
 
         <div class="contact-card">
             <h2 class="card-heading">Let’s connect</h2>
             <p class="card-subtext">With us and lock in a future full of secure possibilities.</p>
             
-            <form id="contactForm">
+            {% if success %}
+                <div class="success-message">
+                    ✅ Your message has been sent successfully!
+                </div>
+            {% endif %}
+
+            {% if error %}
+                <div class="error-message">
+                    ❌ {{ error }}
+                </div>
+            {% endif %}
+
+            <form method="POST" action="/contact">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="form-row">
                     <div class="input-group">
-                        <input type="text" name="firstname" class="form-input" placeholder="First Name" required>
+                        <input 
+                            type="text" 
+                            name="first_name" 
+                            placeholder="First Name" 
+                            class="form-input" 
+                            value="{{ old.get('first_name', '') }}"
+                        >
                     </div>
                     <div class="input-group">
-                        <input type="text" name="lastname" class="form-input" placeholder="Last Name" required>
+                        <input 
+                            type="text" 
+                            name="last_name" 
+                            placeholder="Last Name" 
+                            class="form-input" 
+                            value="{{ old.get('last_name', '') }}"
+                        >
                     </div>
                 </div>
 
                 <div class="input-group">
-                    <input type="email" name="email" class="form-input" placeholder="Email" required>
-                </div>
-                
-                <div class="input-group">
-                    <input type="tel" name="phone" class="form-input" placeholder="Phone Number">
+                    <input 
+                        type="email" 
+                        name="email" 
+                        placeholder="Email" 
+                        class="form-input" 
+                        required 
+                        value="{{ old.get('email', '') }}"
+                    >
                 </div>
 
                 <div class="input-group">
-                    <textarea name="message" class="form-input" placeholder="Message" required></textarea>
+                    <input 
+                        type="tel" 
+                        name="phone_number" 
+                        placeholder="Phone Number" 
+                        class="form-input" 
+                        value="{{ old.get('phone_number', '') }}"
+                    >
+                </div>
+
+                <div class="input-group">
+                    <textarea 
+                        name="message" 
+                        placeholder="Message" 
+                        class="form-input" 
+                        rows="5"
+                    >{{ old.get('message', '') }}</textarea>
                 </div>
 
                 <button type="submit" class="btn-submit">
-                    Send 
+                    Send &nbsp;
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -505,7 +549,7 @@
                 </button>
             </form>
         </div>
-    </main>
+        </main>
 
     <footer>
         <div class="footer-container">
@@ -514,23 +558,23 @@
                 <h2 class="footer-heading">Do you have<br>any Questions?</h2>
                 <p class="footer-subtext">Feel free to send us your questions or Feedback</p>
                 
-                <button class="btn-contact">Contact us</button>
+                <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
 
-                <ul class="footer-nav">
-                    <li><a href="#">Home</a></li>
+                <div class="footer-nav">
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
                     <li><a href="#">Feature</a></li>
                     <li><a href="#">Pricing</a></li>
                     <li><a href="#">Contact</a></li>
-                </ul>
+                </div>
 
                 <div class="contact-details">
                     <div class="contact-group">
-                        <h4>SIGN UP</h4>
-                        <p>+1 890 123-52-61</p>
+                        <h4>Contact No</h4>
+                        <p>+91 9173233009</p>
                     </div>
                     <div class="contact-group">
                         <h4>EMAIL</h4>
-                        <p>luxwardensupport@gmail.com</p>
+                        <p>support@luxwarden.com</p>
                     </div>
                 </div>
             </div>
@@ -544,28 +588,12 @@
                 <div class="footer-branding">
                     <h3 class="footer-logo">Lux<span>Warden</span></h3>
                     <p class="footer-tagline">Get your Web App Secured Affordably.</p>
-                    <p class="copyright">© 2026 — Copyright</p>
+                    <p class="copyright">©️ 2026 — Copyright</p>
                 </div>
             </div>
 
         </div>
     </footer>
-
-    <script>
-        // Simple Interaction Logic
-        document.getElementById('contactForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = document.querySelector('.btn-submit');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = 'Sending...';
-            setTimeout(() => {
-                alert('Thank you! Your message has been sent.');
-                btn.innerHTML = originalText;
-                document.getElementById('contactForm').reset();
-            }, 1000);
-        });
-    </script>
 
 </body>
 </html>
