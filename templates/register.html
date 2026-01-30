@@ -109,6 +109,7 @@
             gap: 15px;
         }
         .btn {
+            text-decoration: none;
             padding: 8px 20px;
             border-radius: 6px;
             font-size: 0.9rem;
@@ -182,7 +183,7 @@
 
         .register-card {
             width: 100%;
-            max-width: 450px; /* Slightly wider than login for more inputs */
+            max-width: 450px;
             background: var(--card-bg);
             backdrop-filter: blur(16px);
             border: 1px solid var(--border-light);
@@ -198,7 +199,7 @@
             font-weight: 600;
         }
         .input-group {
-            margin-bottom: 15px; /* Slightly tighter spacing for more fields */
+            margin-bottom: 15px; 
         }
         .form-input {
             width: 100%;
@@ -213,6 +214,30 @@
         }
         .form-input:focus {
             border-color: var(--primary-purple);
+        }
+
+        /* Alerts from Code 2 adapted for Dark Mode */
+        .success-message {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .error-message {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: left;
+            font-size: 0.9rem;
         }
 
         .btn-submit {
@@ -271,6 +296,7 @@
             font-size: 1rem;
         }
         .btn-contact {
+            text-decoration: none;
             background-color: #8b5cf6;
             color: white;
             padding: 12px 30px;
@@ -402,14 +428,14 @@
             </svg>
         </div>
         <div class="nav-links">
-            <li class="nav-item"><a href="#">Home</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
             <li class="nav-item"><a href="#">Features</a></li>
             <li class="nav-item"><a href="#">Pricing</a></li>
-            <li class="nav-item"><a href="#">Contact</a></li>
+            <li class="nav-item"><a href="{{ url_for('contact') }}">Contact</a></li>
         </div>
         <div class="header-actions">
-            <button class="btn btn-primary-small">Sign in</button>
-            <button class="btn btn-ghost">Register</button>
+            <a href="{{ url_for('signin') }}" class="btn btn-primary-small">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-ghost">Register</a>
         </div>
         <div class="hamburger">
             <div class="bar"></div>
@@ -434,21 +460,73 @@
 
         <div class="register-card">
             <h2 class="card-heading">Create Account</h2>
-            <form id="registerForm">
-                <div class="input-group">
-                    <input type="text" name="fullname" class="form-input" placeholder="Full Name" required>
+            
+            {% if success %}
+                <div class="success-message">
+                    ✅ Account created successfully! You can now log in.
                 </div>
-                <div class="input-group">
-                    <input type="email" name="email" class="form-input" placeholder="Email" required>
+            {% endif %}
+
+            {% if error %}
+                <div class="error-message">
+                    ❌ {{ error }}
                 </div>
+            {% endif %}
+
+            <form action="{{ url_for('register') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="input-group">
-                    <input type="tel" name="phone" class="form-input" placeholder="Phone Number">
+                    <input 
+                        type="text" 
+                        name="full_name" 
+                        class="form-input" 
+                        placeholder="Full Name" 
+                        value="{{ old.get('full_name', '') }}" 
+                        required
+                    >
                 </div>
+                
                 <div class="input-group">
-                    <input type="password" name="password" class="form-input" placeholder="Password" required>
+                    <input 
+                        type="email" 
+                        name="email" 
+                        class="form-input" 
+                        placeholder="Email" 
+                        value="{{ old.get('email', '') }}" 
+                        required
+                    >
                 </div>
+                
                 <div class="input-group">
-                    <input type="password" name="confirm_password" class="form-input" placeholder="Confirm Password" required>
+                    <input 
+                        type="tel" 
+                        name="phone" 
+                        class="form-input" 
+                        placeholder="Phone Number" 
+                        value="{{ old.get('phone', '') }}" 
+                        required
+                    >
+                </div>
+                
+                <div class="input-group">
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="form-input" 
+                        placeholder="Password" 
+                        required
+                    >
+                </div>
+                
+                <div class="input-group">
+                    <input 
+                        type="password" 
+                        name="confirm_password" 
+                        class="form-input" 
+                        placeholder="Confirm Password" 
+                        required
+                    >
                 </div>
 
                 <button type="submit" class="btn-submit">
@@ -471,23 +549,23 @@
                 <h2 class="footer-heading">Do you have<br>any Questions?</h2>
                 <p class="footer-subtext">Feel free to send us your questions or Feedback</p>
                 
-                <button class="btn-contact">Contact us</button>
+                <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
 
                 <ul class="footer-nav">
-                    <li><a href="#">Home</a></li>
+                    <li><a href="{{ url_for('index') }}">Home</a></li>
                     <li><a href="#">Feature</a></li>
                     <li><a href="#">Pricing</a></li>
-                    <li><a href="#">Contact</a></li>
+                    <li><a href="{{ url_for('contact') }}">Contact</a></li>
                 </ul>
 
                 <div class="contact-details">
                     <div class="contact-group">
-                        <h4>SIGN UP</h4>
-                        <p>+1 890 123-52-61</p>
+                        <h4>Contact No</h4>
+                        <p>+91 9173233009</p>
                     </div>
                     <div class="contact-group">
                         <h4>EMAIL</h4>
-                        <p>luxwardensupport@gmail.com</p>
+                        <p>support@luxwarden.com</p>
                     </div>
                 </div>
             </div>
@@ -501,36 +579,12 @@
                 <div class="footer-branding">
                     <h3 class="footer-logo">Lux<span>Warden</span></h3>
                     <p class="footer-tagline">Get your Web App Secured Affordably.</p>
-                    <p class="copyright">© 2026 — Copyright</p>
+                    <p class="copyright">©️ 2026 — Copyright</p>
                 </div>
             </div>
 
         </div>
     </footer>
-
-    <script>
-        // Simple Interaction Logic
-        document.getElementById('registerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = document.querySelector('.btn-submit');
-            const originalText = btn.innerHTML;
-            
-            // Password match validation
-            const pass = document.querySelector('input[name="password"]').value;
-            const confirm = document.querySelector('input[name="confirm_password"]').value;
-            
-            if (pass !== confirm) {
-                alert("Passwords do not match!");
-                return;
-            }
-
-            btn.innerHTML = 'Creating Account...';
-            setTimeout(() => {
-                alert('Registration Successful!');
-                btn.innerHTML = originalText;
-            }, 1000);
-        });
-    </script>
 
 </body>
 </html>
