@@ -15,6 +15,7 @@
             --primary-hover: #7c3aed;
             --text-main: #ffffff;
             --text-muted: #9ca3af;
+            --success-green: #10b981;
             --border-light: rgba(255, 255, 255, 0.1);
             --gradient-text: linear-gradient(90deg, #a78bfa, #8b5cf6, #d946ef);
             --gradient-btn: linear-gradient(90deg, #7c3aed, #9333ea);
@@ -117,6 +118,8 @@
             cursor: pointer;
             border: none;
             transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
         }
         .btn-primary-small {
             background: var(--primary-purple);
@@ -128,9 +131,6 @@
         .btn-ghost {
             background: white;
             color: black;
-        }
-        .btn-ghost:hover {
-            background: #f3f4f6;
         }
 
         .hamburger {
@@ -170,7 +170,6 @@
             margin-bottom: 5px;
             font-weight: 500;
         }
-        /* Specific gradient style for the "Register" main heading */
         .page-heading {
             font-size: 3.5rem;
             font-weight: 800;
@@ -198,14 +197,18 @@
             margin-bottom: 25px;
             font-weight: 600;
         }
+
+        /* Input Styles */
         .input-group {
-            margin-bottom: 15px; 
+            margin-bottom: 15px;
+            position: relative;
         }
         .form-input {
             width: 100%;
             background: rgba(255,255,255,0.05);
             border: 1px solid var(--border-light);
             padding: 14px 16px;
+            padding-right: 45px;
             border-radius: 6px;
             color: white;
             font-size: 0.95rem;
@@ -216,7 +219,22 @@
             border-color: var(--primary-purple);
         }
 
-        /* Alerts from Code 2 adapted for Dark Mode */
+        /* Eye Icon Button */
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            transition: color 0.3s;
+        }
+
+        /* Alerts */
         .success-message {
             background: rgba(46, 204, 113, 0.15);
             color: #2ecc71;
@@ -240,6 +258,40 @@
             font-size: 0.9rem;
         }
 
+        /* Validation Box */
+        .validation-box {
+            text-align: left;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-light);
+        }
+        .validation-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .criteria-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .criteria-item {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.3s;
+        }
+        .criteria-item svg { width: 14px; height: 14px; }
+        .criteria-item.valid { color: var(--success-green); }
+        .criteria-item.valid svg { stroke: var(--success-green); }
+
         .btn-submit {
             width: 100%;
             padding: 12px;
@@ -254,11 +306,8 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 20px;
+            margin-top: 10px;
             transition: opacity 0.3s;
-        }
-        .btn-submit:hover {
-            opacity: 0.9;
         }
 
         /* =========================================
@@ -279,22 +328,9 @@
             gap: 40px;
         }
 
-        .footer-left {
-            flex: 1;
-            min-width: 300px;
-        }
-
-        .footer-heading {
-            font-size: 2.5rem;
-            font-weight: 600;
-            margin-bottom: 15px;
-            line-height: 1.2;
-        }
-        .footer-subtext {
-            color: var(--text-muted);
-            margin-bottom: 30px;
-            font-size: 1rem;
-        }
+        .footer-left { flex: 1; min-width: 300px; }
+        .footer-heading { font-size: 2.5rem; font-weight: 600; margin-bottom: 15px; line-height: 1.2; }
+        .footer-subtext { color: var(--text-muted); margin-bottom: 30px; font-size: 1rem; }
         .btn-contact {
             text-decoration: none;
             background-color: #8b5cf6;
@@ -302,112 +338,29 @@
             padding: 12px 30px;
             border-radius: 50px;
             font-weight: 600;
-            border: none;
-            cursor: pointer;
-            font-size: 0.95rem;
-            margin-bottom: 40px;
             display: inline-block;
-            transition: background-color 0.3s;
-        }
-        .btn-contact:hover {
-            background-color: #7c3aed;
-        }
-
-        .footer-nav {
-            display: flex;
-            gap: 30px;
-            list-style: none;
             margin-bottom: 40px;
         }
-        .footer-nav a {
-            text-decoration: none;
-            color: var(--text-muted);
-            font-weight: 500;
-            font-size: 0.95rem;
-            transition: color 0.3s;
-        }
-        .footer-nav a:hover {
-            color: white;
-        }
+        .footer-nav { display: flex; gap: 30px; list-style: none; margin-bottom: 40px; }
+        .footer-nav a { text-decoration: none; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; }
+        .footer-nav a:hover { color: white; }
 
-        .contact-details {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .contact-group h4 {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-        .contact-group p {
-            font-size: 1rem;
-            color: white;
-        }
+        .contact-details { display: flex; flex-direction: column; gap: 20px; }
+        .contact-group h4 { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .contact-group p { font-size: 1rem; color: white; }
 
-        .footer-right {
-            flex: 1;
-            min-width: 300px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: flex-end;
-            text-align: right;
-        }
+        .footer-right { flex: 1; min-width: 300px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; text-align: right; }
+        .quote-box { display: flex; gap: 15px; max-width: 400px; text-align: left; }
+        .quote-bar { width: 4px; background-color: #8b5cf6; border-radius: 2px; flex-shrink: 0; }
+        .quote-text { color: var(--text-muted); font-size: 1rem; line-height: 1.5; }
 
-        .quote-box {
-            display: flex;
-            gap: 15px;
-            max-width: 400px;
-            text-align: left;
-        }
-        .quote-bar {
-            width: 4px;
-            background-color: #8b5cf6;
-            border-radius: 2px;
-            flex-shrink: 0;
-        }
-        .quote-text {
-            color: var(--text-muted);
-            font-size: 1rem;
-            line-height: 1.5;
-        }
+        .footer-logo { font-size: 2rem; font-weight: 700; color: white; margin-top: 60px; }
+        .footer-logo span { color: #8b5cf6; }
 
-        .footer-branding {
-            margin-top: 60px;
-        }
-        .footer-logo {
-            font-size: 2rem;
-            font-weight: 700;
-            color: white;
-            margin-bottom: 10px;
-        }
-        .footer-logo span {
-            color: #8b5cf6;
-        }
-        .footer-tagline {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 5px;
-        }
-        .copyright {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        /* =========================================
-           6. RESPONSIVE QUERIES
-           ========================================= */
         @media (max-width: 900px) {
-            header { padding: 0 20px; }
             .nav-links, .header-actions { display: none; }
             .hamburger { display: flex; }
-            
-            .footer-container { flex-direction: column; }
             .footer-right { align-items: flex-start; text-align: left; }
-            .footer-branding { margin-top: 40px; }
         }
     </style>
 </head>
@@ -429,13 +382,13 @@
         </div>
         <div class="nav-links">
             <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
-            <li class="nav-item"><a href="#">Features</a></li>
-            <li class="nav-item"><a href="#">Pricing</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}#Features">Features</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}#Pricing">Pricing</a></li>
             <li class="nav-item"><a href="{{ url_for('contact') }}">Contact</a></li>
         </div>
         <div class="header-actions">
-            <a href="{{ url_for('signin') }}" class="btn btn-primary-small">Sign in</a>
-            <a href="{{ url_for('register') }}" class="btn btn-ghost">Register</a>
+            <a href="{{ url_for('signin') }}" class="btn btn-ghost">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-primary-small">Register</a>
         </div>
         <div class="hamburger">
             <div class="bar"></div>
@@ -462,74 +415,53 @@
             <h2 class="card-heading">Create Account</h2>
             
             {% if success %}
-                <div class="success-message">
-                    ✅ Account created successfully! You can now log in.
-                </div>
+                <div class="success-message">✅ Account created! You can now Sign in.</div>
             {% endif %}
 
             {% if error %}
-                <div class="error-message">
-                    ❌ {{ error }}
-                </div>
+                <div class="error-message">❌ {{ error }}</div>
             {% endif %}
 
-            <form action="{{ url_for('register') }}" method="POST">
+            <form action="{{ url_for('register') }}" method="POST" id="registerForm">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="input-group">
-                    <input 
-                        type="text" 
-                        name="full_name" 
-                        class="form-input" 
-                        placeholder="Full Name" 
-                        value="{{ old.get('full_name', '') }}" 
-                        required
-                    >
+                    <input type="text" name="full_name" class="form-input" placeholder="Full Name" value="{{ old.get('full_name', '') }}" required>
                 </div>
                 
                 <div class="input-group">
-                    <input 
-                        type="email" 
-                        name="email" 
-                        class="form-input" 
-                        placeholder="Email" 
-                        value="{{ old.get('email', '') }}" 
-                        required
-                    >
+                    <input type="email" name="email" class="form-input" placeholder="Email" value="{{ old.get('email', '') }}" required>
                 </div>
                 
                 <div class="input-group">
-                    <input 
-                        type="tel" 
-                        name="phone" 
-                        class="form-input" 
-                        placeholder="Phone Number" 
-                        value="{{ old.get('phone', '') }}" 
-                        required
-                    >
+                    <input type="tel" name="phone" class="form-input" placeholder="Phone Number" value="{{ old.get('phone', '') }}" required>
                 </div>
                 
                 <div class="input-group">
-                    <input 
-                        type="password" 
-                        name="password" 
-                        class="form-input" 
-                        placeholder="Password" 
-                        required
-                    >
-                </div>
-                
-                <div class="input-group">
-                    <input 
-                        type="password" 
-                        name="confirm_password" 
-                        class="form-input" 
-                        placeholder="Confirm Password" 
-                        required
-                    >
+                    <input type="password" name="password" id="password" class="form-input" placeholder="Password" required>
+                    <button type="button" class="toggle-password" onclick="toggleVisibility('password', this)">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
                 </div>
 
-                <button type="submit" class="btn-submit">
+                <div class="input-group">
+                    <input type="password" name="confirm_password" id="confirm_password" class="form-input" placeholder="Confirm Password" required>
+                    <button type="button" class="toggle-password" onclick="toggleVisibility('confirm_password', this)">
+                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                </div>
+
+                <div class="validation-box">
+                    <span class="validation-title">Password must contain:</span>
+                    <ul class="criteria-list">
+                        <li class="criteria-item" id="rule-length"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Min 8 Characters</li>
+                        <li class="criteria-item" id="rule-upper"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Uppercase Letter</li>
+                        <li class="criteria-item" id="rule-number"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Number</li>
+                        <li class="criteria-item" id="rule-special"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>Special Char</li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
                     Register 
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
@@ -544,47 +476,61 @@
 
     <footer>
         <div class="footer-container">
-            
             <div class="footer-left">
                 <h2 class="footer-heading">Do you have<br>any Questions?</h2>
                 <p class="footer-subtext">Feel free to send us your questions or Feedback</p>
-                
                 <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
-
                 <ul class="footer-nav">
                     <li><a href="{{ url_for('index') }}">Home</a></li>
-                    <li><a href="#">Feature</a></li>
-                    <li><a href="#">Pricing</a></li>
+                    <li><a href="{{ url_for('index') }}#Features">Feature</a></li>
+                    <li><a href="{{ url_for('index') }}#Pricing">Pricing</a></li>
                     <li><a href="{{ url_for('contact') }}">Contact</a></li>
                 </ul>
-
                 <div class="contact-details">
-                    <div class="contact-group">
-                        <h4>Contact No</h4>
-                        <p>+91 9173233009</p>
-                    </div>
-                    <div class="contact-group">
-                        <h4>EMAIL</h4>
-                        <p>support@luxwarden.com</p>
-                    </div>
+                    <div class="contact-group"><h4>Contact No</h4><p>+91 9173233009</p></div>
+                    <div class="contact-group"><h4>EMAIL</h4><p>support@luxwarden.com</p></div>
                 </div>
             </div>
-
             <div class="footer-right">
                 <div class="quote-box">
                     <div class="quote-bar"></div>
                     <p class="quote-text">It is necessary to secure your Web Application or Website in today’s hackable Era.</p>
                 </div>
-
                 <div class="footer-branding">
                     <h3 class="footer-logo">Lux<span>Warden</span></h3>
                     <p class="footer-tagline">Get your Web App Secured Affordably.</p>
                     <p class="copyright">©️ 2026 — Copyright</p>
                 </div>
             </div>
-
         </div>
     </footer>
 
+    <script>
+        function toggleVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const iconSvg = btn.querySelector('svg');
+            if (input.type === "password") {
+                input.type = "text";
+                iconSvg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                input.type = "password";
+                iconSvg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
+        }
+
+        const passwordInput = document.getElementById('password');
+        const ruleLength = document.getElementById('rule-length');
+        const ruleUpper = document.getElementById('rule-upper');
+        const ruleNumber = document.getElementById('rule-number');
+        const ruleSpecial = document.getElementById('rule-special');
+
+        passwordInput.addEventListener('input', function(e) {
+            const pass = e.target.value;
+            pass.length >= 8 ? ruleLength.classList.add('valid') : ruleLength.classList.remove('valid');
+            /[A-Z]/.test(pass) ? ruleUpper.classList.add('valid') : ruleUpper.classList.remove('valid');
+            /[0-9]/.test(pass) ? ruleNumber.classList.add('valid') : ruleNumber.classList.remove('valid');
+            /[!@#$%^&*(),.?":{}|<>]/.test(pass) ? ruleSpecial.classList.add('valid') : ruleSpecial.classList.remove('valid');
+        });
+    </script>
 </body>
 </html>
