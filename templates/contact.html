@@ -452,8 +452,8 @@
         </div>
         <div class="nav-links">
             <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
-            <li class="nav-item"><a href="#">Features</a></li>
-            <li class="nav-item"><a href="#">Pricing</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}#Features">Features</a></li>
+            <li class="nav-item"><a href="{{ url_for('index') }}#Pricing">Pricing</a></li>
             <li class="nav-item"><a href="{{ url_for('contact') }}">Contact</a></li>
         </div>
         <div class="header-actions">
@@ -562,8 +562,8 @@
 
                 <div class="footer-nav">
                     <li><a href="{{ url_for('index') }}">Home</a></li>
-                    <li><a href="#">Feature</a></li>
-                    <li><a href="#">Pricing</a></li>
+                    <li><a href="{{ url_for('index') }}#Features">Feature</a></li>
+                    <li><a href="{{ url_for('index') }}#Pricing">Pricing</a></li>
                     <li><a href="#">Contact</a></li>
                 </div>
 
