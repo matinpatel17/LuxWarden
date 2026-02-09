@@ -1,6 +1,6 @@
-from flask import Flask, flash, render_template, request, redirect, url_for, session, make_response
+from flask import Flask, flash, render_template, request, redirect, url_for, session, make_response, Response
 import mysql.connector
-import re, os
+import re, os, requests
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 import base64, hashlib
@@ -14,6 +14,14 @@ from email_validator import validate_email, EmailNotValidError
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 
+# --- IMPORT FIREWALL LOGIC ---
+# Ensure 'waf.py' is in the same folder
+try:
+    from waf import inspect_request
+except ImportError:
+    print("WARNING: waf.py not found. Firewall engine will not work.")
+    def inspect_request(req, rules): return None
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -21,8 +29,10 @@ app = Flask(__name__)
 # 🔐 Secret key
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# This is what causes the auth error if HTML is missing the token
+# --- CSRF CONFIG ---
+# We must exempt the proxy route because external hackers won't send a CSRF token
 csrf = CSRFProtect(app)
+app.config['WTF_CSRF_EXEMPT_LIST'] = ['proxy_handler']
 
 # 📧 Mail Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
@@ -33,7 +43,7 @@ app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 
 mail = Mail(app)
 
-# 🔐 Token Serializer (for generating secure links)
+# 🔐 Token Serializer
 s = URLSafeTimedSerializer(app.secret_key)
 
 # 🔐 Encryption key
@@ -43,10 +53,11 @@ if not fernet_key_str:
 
 cipher = Fernet(fernet_key_str.encode())
 
+# --- LIMITER ---
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["2000 per day", "500 per hour"]
 )
 
 def get_db_connection():
@@ -60,6 +71,8 @@ def get_db_connection():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+# --- AUTH ROUTES ---
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -178,13 +191,13 @@ def signin():
         if is_paid:
             return redirect(url_for("dashboard"))
         else:
-            # FIX: Added message so user knows why they are redirected
             session["error_message"] = "Please complete your payment to access the dashboard."
             return redirect(url_for("payment"))
 
     success_msg = session.pop("success_message", None)
     error_msg = session.pop("error_message", None)
-
+    
+    # FIX: old={} prevents UndefinedError on page load
     return render_template(
         "signin.html", 
         success=success_msg, 
@@ -192,25 +205,187 @@ def signin():
         old={}
     )
 
-@app.route("/dashboard", methods=["GET", "POST"])
-def dashboard():
-    # 1. Check if logged in
-    if "user_id" not in session:
-        return redirect(url_for("signin"))
-    
-    # 2. Check if paid
-    if not session.get("is_paid", False):
-        session["error_message"] = "You must complete payment to access the dashboard."
-        return redirect(url_for("payment"))
-    
-    # 3. Success (Global Cache Buster handles the headers now)
-    return render_template("dashboard.html")
-
 @app.route("/logout")
 def logout():
     session.clear()
     flash("You have been logged out successfully")
     return redirect(url_for("signin"))
+
+# --- 🛡️ NEW DASHBOARD & FIREWALL ROUTES ---
+
+@app.route("/dashboard")
+def dashboard():
+    # 1. Check Login & Payment
+    if "user_id" not in session: return redirect(url_for("signin"))
+    if not session.get("is_paid", False):
+        session["error_message"] = "You must complete payment first."
+        return redirect(url_for("payment"))
+
+    # 2. Fetch Firewall Data
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    
+    # Get Domains
+    cursor.execute("""
+        SELECT d.*, r.block_sqli, r.block_xss, r.block_ip 
+        FROM domains d 
+        LEFT JOIN firewall_rules r ON d.id = r.domain_id 
+        WHERE d.user_id = %s
+    """, (session["user_id"],))
+    domains = cursor.fetchall()
+
+    # Get Recent Attacks
+    cursor.execute("""
+        SELECT l.*, d.domain_name 
+        FROM attack_logs l
+        JOIN domains d ON l.domain_id = d.id
+        WHERE d.user_id = %s
+        ORDER BY l.timestamp DESC LIMIT 10
+    """, (session["user_id"],))
+    logs = cursor.fetchall()
+    
+    cursor.close()
+    db.close()
+
+    return render_template("dashboard.html", domains=domains, logs=logs)
+
+@app.route("/add_domain", methods=["POST"])
+def add_domain():
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    domain_name = request.form.get("domain_name")
+    target_url = request.form.get("target_url")
+    
+    # Generate a unique proxy slug
+    proxy_slug = f"{session['user_id']}-{secrets.token_hex(4)}"
+
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        
+        # 1. Insert Domain
+        cursor.execute(
+            "INSERT INTO domains (user_id, domain_name, target_url, proxy_url) VALUES (%s, %s, %s, %s)",
+            (session["user_id"], domain_name, target_url, proxy_slug)
+        )
+        domain_id = cursor.lastrowid
+        
+        # 2. Insert Default Rules
+        cursor.execute(
+            "INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 1, 1)",
+            (domain_id,)
+        )
+        
+        db.commit()
+        cursor.close()
+        db.close()
+        flash("Domain added successfully!")
+    except Exception as e:
+        flash(f"Error adding domain: {str(e)}")
+        
+    return redirect(url_for("dashboard"))
+
+@app.route("/delete_domain/<int:domain_id>")
+def delete_domain(domain_id):
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM domains WHERE id = %s AND user_id = %s", (domain_id, session["user_id"]))
+    db.commit()
+    db.close()
+    flash("Domain deleted.")
+    return redirect(url_for("dashboard"))
+
+@app.route("/update_rules/<int:domain_id>", methods=["POST"])
+def update_rules(domain_id):
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    block_sqli = 1 if request.form.get("block_sqli") else 0
+    block_xss = 1 if request.form.get("block_xss") else 0
+    
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("""
+        UPDATE firewall_rules 
+        SET block_sqli = %s, block_xss = %s 
+        WHERE domain_id = %s
+    """, (block_sqli, block_xss, domain_id))
+    db.commit()
+    db.close()
+    flash("Security rules updated.")
+    return redirect(url_for("dashboard"))
+
+# --- 🔥 THE CORE FIREWALL PROXY ---
+@app.route("/proxy/<int:domain_id>/", defaults={'subpath': ''}, methods=["GET", "POST", "PUT", "DELETE"])
+@app.route("/proxy/<int:domain_id>/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE"])
+@csrf.exempt 
+def proxy_handler(domain_id, subpath):
+    # 1. Fetch Domain & Rules
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    
+    cursor.execute("""
+        SELECT d.target_url, r.block_sqli, r.block_xss 
+        FROM domains d 
+        JOIN firewall_rules r ON d.id = r.domain_id 
+        WHERE d.id = %s
+    """, (domain_id,))
+    domain = cursor.fetchone()
+    
+    if not domain:
+        return "Domain not configured in LuxWarden", 404
+
+    # 2. INSPECT TRAFFIC
+    class RuleSet:
+        block_sqli = domain['block_sqli']
+        block_xss = domain['block_xss']
+
+    attack_type = inspect_request(request, RuleSet)
+
+    if attack_type:
+        cursor.execute("""
+            INSERT INTO attack_logs (domain_id, attacker_ip, attack_type, payload)
+            VALUES (%s, %s, %s, %s)
+        """, (domain_id, request.remote_addr, attack_type, str(request.args)))
+        db.commit()
+        db.close()
+        return render_template("blocked.html", attack_type=attack_type), 403
+
+    db.close()
+
+    # 3. FORWARD TRAFFIC
+    if subpath:
+        target_url = f"{domain['target_url']}/{subpath}"
+    else:
+        target_url = domain['target_url']
+    
+    # --- FIX: CLEAN HEADERS ---
+    # We copy headers but REMOVE 'Host' and 'Accept-Encoding'
+    # Removing 'Accept-Encoding' forces the server to send plain text (no Gzip gibberish)
+    req_headers = {key: value for (key, value) in request.headers if key.lower() not in ['host', 'accept-encoding']}
+    
+    try:
+        resp = requests.request(
+            method=request.method,
+            url=target_url,
+            headers=req_headers, # Use our cleaned headers
+            data=request.get_data(),
+            params=request.args,
+            allow_redirects=True
+        )
+        
+        # Filter response headers preventing transfer issues
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in resp.raw.headers.items()
+                   if name.lower() not in excluded_headers]
+
+        return Response(resp.content, resp.status_code, headers)
+        
+    except Exception as e:
+        return f"Error connecting to protected server: {e}", 502
+
+# --- EXISTING PAYMENT & CONTACT ---
 
 @app.route("/contact", methods=["GET", "POST"])
 def contact():
@@ -397,27 +572,17 @@ def payment():
 
     return render_template("payment.html", success=success, error=error, old=old)
 
-# Forgot and reset password
+# --- PASSWORD RESET ROUTES ---
 
 @app.route("/reset_request", methods=["GET", "POST"])
 def reset_request():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
 
-        # 1. Validation: Check if empty
         if not email:
             flash("Please enter your email address.")
             return redirect(url_for("reset_request"))
 
-        # 2. Validation: Check Syntax & DNS (Real Domain Check)
-        try:
-            valid = validate_email(email, check_deliverability=True)
-            email = valid.normalized
-        except EmailNotValidError as e:
-            flash(str(e)) # e.g., "The domain gmailll.com does not exist"
-            return redirect(url_for("reset_request"))
-
-        # 3. Database Check
         try:
             db = get_db_connection()
             cursor = db.cursor()
@@ -427,7 +592,6 @@ def reset_request():
             db.close()
 
             if user:
-                # ✅ User Found - Send Email
                 token = s.dumps(email, salt='password-reset-salt')
                 link = url_for('reset_token', token=token, _external=True)
                 
@@ -438,21 +602,18 @@ def reset_request():
                 
                 try:
                     mail.send(msg)
-                    flash("An email has been sent with instructions to reset your password.")
+                    flash("An email has been sent.")
                     return redirect(url_for("signin"))
                 except Exception as e:
-                    print(f"Mail Error: {e}")
-                    flash("Error sending email. Please try again later.")
+                    flash("Error sending email.")
                     return redirect(url_for("reset_request"))
 
             else:
-                # ❌ User Not Found - Show Explicit Error
                 flash("Email does not exist in our records.")
                 return redirect(url_for("reset_request"))
 
         except Exception as e:
-            print(f"Database Error: {e}")
-            flash("An error occurred. Please try again.")
+            flash("An error occurred.")
             return redirect(url_for("reset_request"))
 
     return render_template("reset_request.html")
@@ -460,7 +621,6 @@ def reset_request():
 @app.route("/reset_password/<token>", methods=["GET", "POST"])
 def reset_token(token):
     try:
-        # Verify Token (Expires in 1 hour = 3600 seconds)
         email = s.loads(token, salt='password-reset-salt', max_age=3600)
     except Exception:
         flash("The reset link is invalid or has expired.")
@@ -470,23 +630,10 @@ def reset_token(token):
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
 
-        # 1. Check Matching
         if password != confirm_password:
             flash("Passwords do not match")
             return redirect(url_for("reset_token", token=token))
             
-        # 2. Check Length
-        if len(password) < 8:
-            flash("Password must be at least 8 characters long")
-            return redirect(url_for("reset_token", token=token))
-
-        # 3. Check Complexity (Uppercase + Number + Special Char)
-        password_pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])'
-        if not re.search(password_pattern, password):
-            flash("Password must contain at least one uppercase letter, one number, and one special character")
-            return redirect(url_for("reset_token", token=token))
-
-        # 4. Update Password in DB
         hashed_password = generate_password_hash(password)
         
         try:
@@ -497,12 +644,11 @@ def reset_token(token):
             cursor.close()
             db.close()
 
-            flash("Your password has been updated! You can now log in.")
+            flash("Your password has been updated!")
             return redirect(url_for("signin"))
             
         except Exception as e:
-            print(f"Database Error: {e}")
-            flash("An error occurred while updating your password.")
+            flash("An error occurred.")
             return redirect(url_for("reset_token", token=token))
 
     return render_template("reset_token.html", token=token)
@@ -518,3 +664,4 @@ def add_header(response):
 
 if __name__ == "__main__":
     app.run(debug=True)
+
