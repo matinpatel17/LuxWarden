@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
+from bs4 import BeautifulSoup
 
 # --- IMPORT FIREWALL LOGIC ---
 # Ensure 'waf.py' is in the same folder
@@ -215,17 +216,13 @@ def logout():
 
 @app.route("/dashboard")
 def dashboard():
-    # 1. Check Login & Payment
     if "user_id" not in session: return redirect(url_for("signin"))
-    if not session.get("is_paid", False):
-        session["error_message"] = "You must complete payment first."
-        return redirect(url_for("payment"))
+    if not session.get("is_paid", False): return redirect(url_for("payment"))
 
-    # 2. Fetch Firewall Data
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     
-    # Get Domains
+    # 1. Fetch Domains (Existing)
     cursor.execute("""
         SELECT d.*, r.block_sqli, r.block_xss, r.block_ip 
         FROM domains d 
@@ -234,7 +231,7 @@ def dashboard():
     """, (session["user_id"],))
     domains = cursor.fetchall()
 
-    # Get Recent Attacks
+    # 2. Fetch Recent Attacks (Existing)
     cursor.execute("""
         SELECT l.*, d.domain_name 
         FROM attack_logs l
@@ -243,11 +240,22 @@ def dashboard():
         ORDER BY l.timestamp DESC LIMIT 10
     """, (session["user_id"],))
     logs = cursor.fetchall()
+
+    # 3. NEW: Fetch Blocked IPs for all user's domains
+    cursor.execute("""
+        SELECT b.*, d.domain_name 
+        FROM blocked_ips b
+        JOIN domains d ON b.domain_id = d.id
+        WHERE d.user_id = %s
+        ORDER BY b.added_at DESC
+    """, (session["user_id"],))
+    blocked_ips = cursor.fetchall()
     
     cursor.close()
     db.close()
 
-    return render_template("dashboard.html", domains=domains, logs=logs)
+    # Pass 'blocked_ips' to the template
+    return render_template("dashboard.html", domains=domains, logs=logs, blocked_ips=blocked_ips)
 
 @app.route("/add_domain", methods=["POST"])
 def add_domain():
@@ -272,7 +280,7 @@ def add_domain():
         
         # 2. Insert Default Rules
         cursor.execute(
-            "INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 1, 1)",
+            "INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 0, 0)",
             (domain_id,)
         )
         
@@ -316,72 +324,151 @@ def update_rules(domain_id):
     flash("Security rules updated.")
     return redirect(url_for("dashboard"))
 
+# --- 🚫 IP BLOCKING ROUTES ---
+
+@app.route("/block_ip/<int:domain_id>", methods=["POST"])
+def block_ip(domain_id):
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    ip_address = request.form.get("ip_address", "").strip()
+    
+    # Basic IP validation regex
+    if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip_address):
+        flash("Invalid IP Address format.")
+        return redirect(url_for("dashboard"))
+
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        # Check if already blocked
+        cursor.execute("SELECT id FROM blocked_ips WHERE domain_id = %s AND ip_address = %s", (domain_id, ip_address))
+        if cursor.fetchone():
+            flash("IP is already blocked.")
+        else:
+            cursor.execute("INSERT INTO blocked_ips (domain_id, ip_address) VALUES (%s, %s)", (domain_id, ip_address))
+            db.commit()
+            flash(f"IP {ip_address} has been blocked.")
+        
+        cursor.close()
+        db.close()
+    except Exception as e:
+        flash(f"Error blocking IP: {str(e)}")
+
+    return redirect(url_for("dashboard"))
+
+@app.route("/unblock_ip/<int:ip_id>")
+def unblock_ip(ip_id):
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("DELETE FROM blocked_ips WHERE id = %s", (ip_id,))
+        db.commit()
+        cursor.close()
+        db.close()
+        flash("IP unblocked successfully.")
+    except Exception as e:
+        flash(f"Error unblocking IP: {str(e)}")
+        
+    return redirect(url_for("dashboard"))
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return render_template("blocked.html", attack_type="Rate Limit Exceeded (Too many requests)"), 429
+
 # --- 🔥 THE CORE FIREWALL PROXY ---
 @app.route("/proxy/<int:domain_id>/", defaults={'subpath': ''}, methods=["GET", "POST", "PUT", "DELETE"])
 @app.route("/proxy/<int:domain_id>/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE"])
 @csrf.exempt 
+@limiter.limit("60 per minute") # <--- NEW: Rate Limit (1 request per second)
 def proxy_handler(domain_id, subpath):
-    # 1. Fetch Domain & Rules
+    # 1. Fetch Domain
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
-    
-    cursor.execute("""
-        SELECT d.target_url, r.block_sqli, r.block_xss 
-        FROM domains d 
-        JOIN firewall_rules r ON d.id = r.domain_id 
-        WHERE d.id = %s
-    """, (domain_id,))
+    cursor.execute("SELECT d.target_url, r.block_sqli, r.block_xss FROM domains d JOIN firewall_rules r ON d.id = r.domain_id WHERE d.id = %s", (domain_id,))
     domain = cursor.fetchone()
+
+    # --- NEW: Check IP Blocklist ---
+    cursor.execute("SELECT ip_address FROM blocked_ips WHERE domain_id = %s", (domain_id,))
+    blocked_list = [row['ip_address'] for row in cursor.fetchall()]
     
-    if not domain:
-        return "Domain not configured in LuxWarden", 404
+    if request.remote_addr in blocked_list:
+        db.close()
+        return render_template("blocked.html", attack_type="IP Blacklisted"), 403
+    # -------------------------------
 
-    # 2. INSPECT TRAFFIC
-    class RuleSet:
-        block_sqli = domain['block_sqli']
-        block_xss = domain['block_xss']
+    db.close()
+    
+    if not domain: return "Domain not configured", 404
 
-    attack_type = inspect_request(request, RuleSet)
-
+    # 2. INSPECT TRAFFIC (Firewall Check)
+    # Note: We pass 'domain' as the rules object since it has the block_sqli/xss keys
+    attack_type = inspect_request(request, domain) 
+    
     if attack_type:
-        cursor.execute("""
-            INSERT INTO attack_logs (domain_id, attacker_ip, attack_type, payload)
-            VALUES (%s, %s, %s, %s)
-        """, (domain_id, request.remote_addr, attack_type, str(request.args)))
+        # Log and Block
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO attack_logs (domain_id, attacker_ip, attack_type, payload) VALUES (%s, %s, %s, %s)", 
+                       (domain_id, request.remote_addr, attack_type, str(request.args)))
         db.commit()
         db.close()
         return render_template("blocked.html", attack_type=attack_type), 403
 
-    db.close()
-
     # 3. FORWARD TRAFFIC
+    # Construct the destination URL
     if subpath:
         target_url = f"{domain['target_url']}/{subpath}"
     else:
         target_url = domain['target_url']
-    
-    # --- FIX: CLEAN HEADERS ---
-    # We copy headers but REMOVE 'Host' and 'Accept-Encoding'
-    # Removing 'Accept-Encoding' forces the server to send plain text (no Gzip gibberish)
-    req_headers = {key: value for (key, value) in request.headers if key.lower() not in ['host', 'accept-encoding']}
+
+    # Clean headers
+    req_headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'accept-encoding']}
     
     try:
         resp = requests.request(
             method=request.method,
             url=target_url,
-            headers=req_headers, # Use our cleaned headers
+            headers=req_headers,
             data=request.get_data(),
             params=request.args,
             allow_redirects=True
         )
-        
-        # Filter response headers preventing transfer issues
+
+        # 4. REWRITE LINKS (The Fix for "Not Found")
+        # We only rewrite HTML pages, not images or JSON
+        content = resp.content
+        if 'text/html' in resp.headers.get('Content-Type', ''):
+            soup = BeautifulSoup(content, 'html.parser')
+            
+            # This is the prefix we want to add to all links
+            proxy_prefix = f"/proxy/{domain_id}"
+
+            # Fix <a href="..."> links
+            for tag in soup.find_all(['a', 'link'], href=True):
+                if tag['href'].startswith('/'):
+                    tag['href'] = proxy_prefix + tag['href']
+
+            # Fix <form action="..."> (This fixes the Google Search button!)
+            for tag in soup.find_all('form', action=True):
+                if tag['action'].startswith('/'):
+                    tag['action'] = proxy_prefix + tag['action']
+            
+            # Fix <img src="..."> and <script src="...">
+            for tag in soup.find_all(['img', 'script'], src=True):
+                if tag['src'].startswith('/'):
+                    tag['src'] = proxy_prefix + tag['src']
+
+            content = str(soup)
+
+        # Return the modified response
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
         headers = [(name, value) for (name, value) in resp.raw.headers.items()
                    if name.lower() not in excluded_headers]
 
-        return Response(resp.content, resp.status_code, headers)
-        
+        return Response(content, resp.status_code, headers)
+
     except Exception as e:
         return f"Error connecting to protected server: {e}", 502
 
