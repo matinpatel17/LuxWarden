@@ -1,5 +1,5 @@
-#secrets 
+__pycache__/
+*.pyc
 .env
-
-# Mac system files (If you or a teammate uses a Mac)
+instance/
 .DS_Store
