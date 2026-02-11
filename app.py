@@ -14,6 +14,8 @@ from email_validator import validate_email, EmailNotValidError
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 from bs4 import BeautifulSoup
+from fpdf import FPDF
+import io
 
 # --- IMPORT FIREWALL LOGIC ---
 # Ensure 'waf.py' is in the same folder
@@ -212,17 +214,120 @@ def logout():
     flash("You have been logged out successfully")
     return redirect(url_for("signin"))
 
+# --- 📄 PDF REPORT GENERATOR ---
+# --- 📄 PDF REPORT GENERATOR (With Date Filtering) ---
+@app.route("/generate_report")
+def generate_report():
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    # 1. Get the filter from the URL (default to 'all' if missing)
+    period = request.args.get('period', 'all')
+    
+    # 2. Build the SQL Query based on the period
+    base_query = """
+        SELECT l.timestamp, d.domain_name, l.attack_type, l.attacker_ip, l.payload 
+        FROM attack_logs l 
+        JOIN domains d ON l.domain_id = d.id 
+        WHERE d.user_id = %s 
+    """
+    
+    params = [session["user_id"]]
+    period_text = "All Time History" # Title for the PDF
+
+    if period == 'day':
+        base_query += " AND l.timestamp >= CURDATE()" # Since midnight today
+        period_text = "Report: Today"
+    elif period == 'week':
+        base_query += " AND l.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+        period_text = "Report: Last 7 Days"
+    elif period == 'month':
+        base_query += " AND l.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+        period_text = "Report: Last 30 Days"
+    
+    base_query += " ORDER BY l.timestamp DESC"
+
+    # 3. Execute Query
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute(base_query, tuple(params))
+    logs = cursor.fetchall()
+    db.close()
+
+    # 4. Create PDF (Updated with Dynamic Title)
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15)
+            self.cell(0, 10, 'LuxWarden Security Report', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, f'Period: {period_text}', 0, 1, 'C') # Show the period in header
+            self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+
+    # 5. Add Summary Section
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, f"Total Incidents Found: {len(logs)}", 0, 1)
+    
+    if not logs:
+        pdf.set_font("Arial", 'I', 10)
+        pdf.cell(0, 10, "Great news! No attacks were detected during this period.", 0, 1)
+    
+    pdf.ln(5)
+
+    if logs:
+        # Table Header
+        pdf.set_fill_color(200, 220, 255)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(40, 8, "Time", 1, 0, 'C', True)
+        pdf.cell(40, 8, "Domain", 1, 0, 'C', True)
+        pdf.cell(30, 8, "Type", 1, 0, 'C', True)
+        pdf.cell(30, 8, "Attacker IP", 1, 0, 'C', True)
+        pdf.cell(50, 8, "Payload (Snippet)", 1, 1, 'C', True)
+
+        # Table Rows
+        pdf.set_font("Arial", size=8)
+        for log in logs:
+            time_str = str(log['timestamp'])[0:16]
+            payload_short = log['payload'][0:25] + "..." if len(log['payload']) > 25 else log['payload']
+            
+            pdf.cell(40, 8, time_str, 1)
+            pdf.cell(40, 8, log['domain_name'], 1)
+            pdf.cell(30, 8, log['attack_type'], 1)
+            pdf.cell(30, 8, log['attacker_ip'], 1)
+            pdf.cell(50, 8, payload_short, 1)
+            pdf.ln()
+
+    # 6. Output
+    try:
+        pdf_output = pdf.output(dest='S').encode('latin-1', 'replace') 
+    except:
+        pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
+
+    filename = f"security_report_{period}.pdf"
+    
+    return Response(pdf_output, mimetype='application/pdf', 
+                    headers={'Content-Disposition': f'attachment;filename={filename}'})
+
 # --- 🛡️ NEW DASHBOARD & FIREWALL ROUTES ---
 
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session: return redirect(url_for("signin"))
-    if not session.get("is_paid", False): return redirect(url_for("payment"))
+    # Note: We removed the strict payment check for testing, 
+    # but if you want it back, uncomment the next line:
+    # if not session.get("is_paid", False): return redirect(url_for("payment"))
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     
-    # 1. Fetch Domains (Existing)
+    # 1. Fetch Domains
     cursor.execute("""
         SELECT d.*, r.block_sqli, r.block_xss, r.block_ip 
         FROM domains d 
@@ -231,7 +336,7 @@ def dashboard():
     """, (session["user_id"],))
     domains = cursor.fetchall()
 
-    # 2. Fetch Recent Attacks (Existing)
+    # 2. Fetch Recent Attacks (Logs)
     cursor.execute("""
         SELECT l.*, d.domain_name 
         FROM attack_logs l
@@ -241,7 +346,7 @@ def dashboard():
     """, (session["user_id"],))
     logs = cursor.fetchall()
 
-    # 3. NEW: Fetch Blocked IPs for all user's domains
+    # 3. Fetch Blocked IPs
     cursor.execute("""
         SELECT b.*, d.domain_name 
         FROM blocked_ips b
@@ -250,12 +355,66 @@ def dashboard():
         ORDER BY b.added_at DESC
     """, (session["user_id"],))
     blocked_ips = cursor.fetchall()
+
+    # 4. Fetch Stats for Chart.js
+    cursor.execute("""
+        SELECT attack_type, COUNT(*) as count 
+        FROM attack_logs l
+        JOIN domains d ON l.domain_id = d.id
+        WHERE d.user_id = %s
+        GROUP BY attack_type
+    """, (session["user_id"],))
+    stats_data = cursor.fetchall()
+    
+    chart_labels = [row['attack_type'] for row in stats_data]
+    chart_values = [row['count'] for row in stats_data]
+
+    # 5. NEW: Fetch Support Tickets
+    cursor.execute("""
+        SELECT * FROM support_tickets 
+        WHERE user_id = %s 
+        ORDER BY created_at DESC LIMIT 5
+    """, (session["user_id"],))
+    tickets = cursor.fetchall()
     
     cursor.close()
     db.close()
 
-    # Pass 'blocked_ips' to the template
-    return render_template("dashboard.html", domains=domains, logs=logs, blocked_ips=blocked_ips)
+    return render_template("dashboard.html", 
+                           domains=domains, 
+                           logs=logs, 
+                           blocked_ips=blocked_ips,
+                           chart_labels=chart_labels, 
+                           chart_values=chart_values,
+                           tickets=tickets)
+
+# --- 🎫 SUPPORT TICKET SYSTEM ---
+@app.route("/create_ticket", methods=["POST"])
+def create_ticket():
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    subject = request.form.get("subject")
+    message = request.form.get("message")
+    
+    if not subject or not message:
+        flash("❌ Subject and Message are required.")
+        return redirect(url_for("dashboard"))
+
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("""
+            INSERT INTO support_tickets (user_id, subject, message) 
+            VALUES (%s, %s, %s)
+        """, (session["user_id"], subject, message))
+        db.commit()
+        cursor.close()
+        db.close()
+        flash("✅ Support ticket created! We will reply soon.")
+    except Exception as e:
+        flash(f"Error creating ticket: {str(e)}")
+        
+    return redirect(url_for("dashboard"))
 
 @app.route("/add_domain", methods=["POST"])
 def add_domain():
@@ -739,6 +898,61 @@ def reset_token(token):
             return redirect(url_for("reset_token", token=token))
 
     return render_template("reset_token.html", token=token)
+
+# --- ⚙️ SETTINGS & PROFILE MANAGEMENT ---
+@app.route("/settings", methods=["POST"])
+def settings():
+    if "user_id" not in session: return redirect(url_for("signin"))
+    
+    action = request.form.get("action")
+    db = get_db_connection()
+    cursor = db.cursor()
+
+    try:
+        if action == "change_password":
+            new_pass = request.form.get("new_password")
+            confirm_pass = request.form.get("confirm_password") # Added Confirm Field
+
+            # --- 1. Basic Check ---
+            if not new_pass or not confirm_pass:
+                flash("❌ All password fields are required.")
+                return redirect(url_for("dashboard"))
+
+            # --- 2. Match Check ---
+            if new_pass != confirm_pass:
+                flash("❌ Passwords do not match.")
+                return redirect(url_for("dashboard"))
+
+            # --- 3. Length Check ---
+            if len(new_pass) < 8:
+                flash("❌ Password must be at least 8 characters long.")
+                return redirect(url_for("dashboard"))
+
+            # --- 4. Complexity Check (Regex) ---
+            password_pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])'
+            if not re.search(password_pattern, new_pass):
+                flash("❌ Password must contain at least one uppercase letter, one number, and one special character.")
+                return redirect(url_for("dashboard"))
+
+            # --- 5. Success: Hash and Update ---
+            hashed_pass = generate_password_hash(new_pass)
+            cursor.execute("UPDATE users SET password = %s WHERE id = %s", (hashed_pass, session["user_id"]))
+            flash("✅ Password updated successfully.")
+        
+        elif action == "delete_account":
+            cursor.execute("DELETE FROM users WHERE id = %s", (session["user_id"],))
+            db.commit()
+            session.clear()
+            flash("Account deleted. Goodbye!")
+            return redirect(url_for("home"))
+
+        db.commit()
+    except Exception as e:
+        flash(f"Error updating settings: {str(e)}")
+    finally:
+        db.close()
+
+    return redirect(url_for("dashboard"))
 
 # --- 🛡️ GLOBAL CACHE BUSTER ---
 @app.after_request

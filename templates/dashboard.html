@@ -7,10 +7,31 @@
     <style>
         body { background-color: #f4f6f9; }
         .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; }
-        .bg-safe { background-color: #d4edda; color: #155724; }
         .bg-danger-soft { background-color: #f8d7da; color: #721c24; }
         .proxy-link { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; }
+        
+        /* Password Validation Styles */
+        .criteria-list { 
+            list-style: none; 
+            padding: 0; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 5px; 
+            margin-top: 10px;
+        }
+        .criteria-item { 
+            font-size: 0.75rem; 
+            color: #6c757d; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            transition: color 0.3s ease; 
+        }
+        .criteria-item svg { width: 12px; height: 12px; stroke: currentColor; }
+        .criteria-item.valid { 
+            color: #198754; 
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -30,7 +51,7 @@
     {% with messages = get_flashed_messages() %}
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -39,6 +60,7 @@
     {% endwith %}
 
     <div class="row">
+        
         <div class="col-md-8">
             
             <div class="card p-4">
@@ -129,7 +151,7 @@
 
             <div class="card p-4 mt-4">
                 <h3 class="mb-3">🚫 IP Blocking Manager</h3>
-                <p class="text-muted small">Manually block specific IP addresses from accessing your protected sites.</p>
+                <p class="text-muted small">Block specific IP addresses from accessing your sites.</p>
 
                 <div class="row g-4">
                     <div class="col-md-5">
@@ -156,7 +178,7 @@
                                 <button type="submit" class="btn btn-danger w-100 btn-sm">Block IP Now</button>
                             </form>
                             {% else %}
-                                <p class="text-danger small">You must add a domain above first.</p>
+                                <p class="text-danger small">Add a domain above first.</p>
                             {% endif %}
                         </div>
                     </div>
@@ -171,7 +193,7 @@
                                         <span class="fw-bold font-monospace text-danger">{{ entry.ip_address }}</span>
                                         <br>
                                         <small class="text-muted" style="font-size: 0.75rem;">
-                                            Site: {{ entry.domain_name }} | {{ entry.added_at }}
+                                            Site: {{ entry.domain_name }}
                                         </small>
                                     </div>
                                     <a href="{{ url_for('unblock_ip', ip_id=entry.id) }}" class="btn btn-sm btn-outline-secondary" title="Unblock">
@@ -182,18 +204,97 @@
                             </div>
                         {% else %}
                             <div class="alert alert-success py-2 small">
-                                No IPs are currently blocked. Everyone can access your sites.
+                                No IPs are currently blocked.
                             </div>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-        </div>
+            <div class="card p-4 mt-4">
+                <h3 class="mb-3">⚙️ Account Settings</h3>
+                <div class="row">
+                    <div class="col-md-7">
+                        <form action="{{ url_for('settings') }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="change_password">
+                            
+                            <label class="form-label fw-bold small text-muted">Change Password</label>
+                            
+                            <div class="input-group mb-2">
+                                <input type="password" name="new_password" id="new_password" class="form-control" placeholder="New Password" required>
+                            </div>
 
-        <div class="col-md-4">
+                            <div class="input-group mb-3">
+                                <input type="password" name="confirm_password" class="form-control" placeholder="Confirm Password" required>
+                            </div>
+
+                            <div class="p-3 bg-light border rounded mb-3">
+                                <small class="d-block text-muted fw-bold mb-1" style="font-size: 0.75rem;">Password Requirements:</small>
+                                <ul class="criteria-list">
+                                    <li class="criteria-item" id="rule-length">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        Min 8 Chars
+                                    </li>
+                                    <li class="criteria-item" id="rule-upper">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        Uppercase Letter
+                                    </li>
+                                    <li class="criteria-item" id="rule-number">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        Number
+                                    </li>
+                                    <li class="criteria-item" id="rule-special">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        Special Char
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <button class="btn btn-outline-primary w-100" type="submit">Update Password</button>
+                        </form>
+                    </div>
+
+                    <div class="col-md-5 border-start ps-4">
+                        <label class="form-label fw-bold small text-muted">Danger Zone</label>
+                        <p class="small text-muted">Once you delete your account, there is no going back. Please be certain.</p>
+                        <form action="{{ url_for('settings') }}" method="POST" onsubmit="return confirm('Are you sure? This will delete your account and all logs permanently!');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="delete_account">
+                            <button class="btn btn-danger w-100 mt-2">🗑️ Delete Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div> <div class="col-md-4">
+            
+            <div class="card p-3 mb-4 shadow-sm border-0">
+                <h5 class="card-title text-center mb-3">📊 Threat Overview</h5>
+                <div style="position: relative; height:200px; width:100%">
+                    <canvas id="attackChart"></canvas>
+                </div>
+            </div>
+
             <div class="card p-4 bg-danger-soft border-danger border-opacity-25">
-                <h4 class="text-danger mb-3">🔥 Attack History</h4>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="text-danger m-0">🔥 Attack History</h4>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            📄 Download Report
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
+                            <li><h6 class="dropdown-header">Select Time Period</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='day') }}">📅 Today</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='week') }}">📆 Last 7 Days</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='month') }}">🗓️ Last 30 Days</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='all') }}">♾️ All Time</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
                 <div class="list-group list-group-flush">
                     {% if logs %}
                         {% for log in logs %}
@@ -216,7 +317,37 @@
                     {% else %}
                         <div class="text-center py-5">
                             <div style="font-size: 3rem;">🛡️</div>
-                            <p class="text-muted mt-2">No attacks detected yet.<br>You are safe!</p>
+                            <p class="text-muted mt-2">No attacks detected yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card p-3 mt-3 shadow-sm border-0">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">🎫 Support Tickets</h5>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#ticketModal">
+                        + New
+                    </button>
+                </div>
+                
+                <div class="list-group list-group-flush">
+                    {% if tickets %}
+                        {% for ticket in tickets %}
+                        <div class="list-group-item px-0 py-2 border-bottom">
+                            <div class="d-flex justify-content-between">
+                                <small class="fw-bold text-truncate" style="max-width: 150px;">{{ ticket.subject }}</small>
+                                <span class="badge rounded-pill {% if ticket.status == 'Open' %}bg-success{% else %}bg-secondary{% endif %}" style="font-size: 0.6em;">
+                                    {{ ticket.status }}
+                                </span>
+                            </div>
+                            <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">{{ ticket.message }}</small>
+                            <small class="text-muted" style="font-size: 0.65rem;">{{ ticket.created_at }}</small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <small class="text-muted">No active tickets.</small>
                         </div>
                     {% endif %}
                 </div>
@@ -225,14 +356,113 @@
             <div class="card p-3 mt-3 bg-light">
                 <h6>Rate Limiting Status</h6>
                 <p class="small text-muted mb-0">
-                    Global Protection is <strong>Active</strong>.<br>
-                    Limit: 60 requests per minute per IP.
+                    Global Protection: <strong>Active</strong>.<br>
+                    Limit: 60 requests per minute.
                 </p>
             </div>
+
+        </div> </div>
+</div>
+
+<div class="modal fade" id="ticketModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Open New Support Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('create_ticket') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <select name="subject" class="form-select">
+                            <option value="Technical Issue">Technical Issue</option>
+                            <option value="Billing Question">Billing Question</option>
+                            <option value="Feature Request">Feature Request</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea name="message" class="form-control" rows="4" placeholder="Describe your issue..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Ticket</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        
+        // --- 1. Chart.js Logic ---
+        const ctx = document.getElementById('attackChart');
+        if (ctx) {
+            const rawLabels = {{ chart_labels | default([]) | tojson }};
+            const rawData = {{ chart_values | default([]) | tojson }};
+
+            let chartLabels = rawLabels;
+            let chartData = rawData;
+            let chartColors = ['#dc3545', '#ffc107', '#0d6efd', '#6610f2', '#20c997'];
+
+            if (rawLabels.length === 0) {
+                chartLabels = ["No Attacks Yet"];
+                chartData = [1];
+                chartColors = ['#e9ecef'];
+            }
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Attacks Blocked',
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } }
+                    }
+                }
+            });
+        }
+
+        // --- 2. Password Validation Logic (Visual Feedback) ---
+        const passwordInput = document.getElementById('new_password');
+        if (passwordInput) {
+            const ruleLength = document.getElementById('rule-length');
+            const ruleUpper = document.getElementById('rule-upper');
+            const ruleNumber = document.getElementById('rule-number');
+            const ruleSpecial = document.getElementById('rule-special');
+
+            passwordInput.addEventListener('input', function(e) {
+                const pass = e.target.value;
+                
+                // Toggle 'valid' class based on Regex checks
+                pass.length >= 8 ? ruleLength.classList.add('valid') : ruleLength.classList.remove('valid');
+                /[A-Z]/.test(pass) ? ruleUpper.classList.add('valid') : ruleUpper.classList.remove('valid');
+                /[0-9]/.test(pass) ? ruleNumber.classList.add('valid') : ruleNumber.classList.remove('valid');
+                /[!@#$%^&*(),.?":{}|<>]/.test(pass) ? ruleSpecial.classList.add('valid') : ruleSpecial.classList.remove('valid');
+            });
+        }
+    });
+</script>
+
 </body>
 </html>
