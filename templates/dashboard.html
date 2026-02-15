@@ -2,467 +2,330 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>LuxWarden Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxWarden - Customer Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #f4f6f9; }
-        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .bg-danger-soft { background-color: #f8d7da; color: #721c24; }
-        .proxy-link { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; }
-        
-        /* Password Validation Styles */
-        .criteria-list { 
-            list-style: none; 
-            padding: 0; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 5px; 
-            margin-top: 10px;
+        /* --- GLOBAL VARIABLES & RESET --- */
+        :root {
+            --sidebar-width: 260px;
+            --header-height: 70px;
+            --card-bg: #11111d;
+            --accent-color: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --text-color: #e2e8f0;
+            --text-muted: #94a3b8;
+            --bg-body: #050511;
+            --glass-bg: rgba(22, 22, 36, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --danger: #ef4444;
         }
-        .criteria-item { 
-            font-size: 0.75rem; 
-            color: #6c757d; 
-            display: flex; 
-            align-items: center; 
-            gap: 6px; 
-            transition: color 0.3s ease; 
-        }
-        .criteria-item svg { width: 12px; height: 12px; stroke: currentColor; }
-        .criteria-item.valid { 
-            color: #198754; 
-            font-weight: 600;
-        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; }
+
+        body { background-color: var(--bg-body); color: var(--text-color); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        /* --- BACKGROUND GLOWS --- */
+        .glow { position: fixed; width: 400px; height: 400px; border-radius: 50%; filter: blur(150px); z-index: -1; opacity: 0.15; pointer-events: none; }
+        .glow-1 { top: -100px; left: -100px; background: #4c1d95; }
+        .glow-2 { bottom: -100px; right: -100px; background: #312e81; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: var(--sidebar-width); height: 100vh; background: rgba(10, 10, 18, 0.95); border-right: 1px solid var(--border-color); position: fixed; top: 0; left: 0; display: flex; flex-direction: column; padding: 25px; z-index: 1000; backdrop-filter: blur(10px); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .brand { display: flex; align-items: center; gap: 12px; font-size: 1.5rem; font-weight: 700; margin-bottom: 50px; color: white; padding-left: 10px; }
+        .brand i { color: var(--accent-color); filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.5)); }
+        .menu-item { display: flex; align-items: center; gap: 15px; padding: 14px 15px; margin-bottom: 8px; border-radius: 12px; cursor: pointer; color: var(--text-muted); text-decoration: none; transition: all 0.2s ease; font-weight: 500; }
+        .menu-item:hover { color: white; background: rgba(255, 255, 255, 0.03); transform: translateX(5px); }
+        .menu-item.active { background: linear-gradient(90deg, rgba(139, 92, 246, 0.15), transparent); color: white; border-left: 3px solid var(--accent-color); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .menu-item i { width: 24px; text-align: center; font-size: 1.1rem; }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-content { flex: 1; margin-left: var(--sidebar-width); padding: 40px; width: 100%; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h1 { font-size: 2rem; font-weight: 600; }
+        .header span { color: var(--accent-color); }
+
+        .user-profile { display: flex; align-items: center; gap: 15px; background: var(--glass-bg); padding: 8px 15px; border-radius: 50px; border: 1px solid var(--border-color); cursor: pointer; }
+        .user-info { text-align: right; }
+        .user-name { display: block; font-weight: 600; font-size: 0.9rem; color: white; }
+        .user-role { font-size: 0.75rem; color: var(--text-muted); }
+        .user-avatar { width: 35px; height: 35px; background: var(--accent-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
+
+        .dashboard-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .dashboard-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- CARDS & PANELS --- */
+        .glass-panel { background: var(--glass-bg); border: 1px solid var(--border-color); border-radius: 20px; padding: 30px; margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .stat-card { background: linear-gradient(145deg, #1a1a2e, #13131f); padding: 30px; border-radius: 20px; text-align: center; border: 1px solid var(--border-color); transition: 0.3s; }
+        .stat-card:hover { transform: translateY(-5px); border-color: var(--accent-color); }
+        .stat-box { width: 60px; height: 60px; background: rgba(139, 92, 246, 0.1); border-radius: 15px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: var(--accent-color); }
+        .stat-card h3 { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 10px; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; color: white; }
+
+        /* --- FORMS & TABLES --- */
+        .form-group { margin-bottom: 20px; }
+        .form-control { background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); color: white; padding: 12px 16px; border-radius: 8px; width: 100%; }
+        .btn-primary { background: linear-gradient(90deg, var(--accent-color), #7c3aed); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        .styled-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .styled-table thead th { color: var(--text-muted); text-align: left; padding: 0 20px 10px; font-size: 0.85rem; text-transform: uppercase; }
+        .styled-table tbody tr { background: rgba(255, 255, 255, 0.03); }
+        .styled-table td { padding: 15px 20px; }
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+
+        /* --- TOGGLES --- */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
 
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container">
-        <span class="navbar-brand mb-0 h1">🛡️ LuxWarden</span>
-        <div class="d-flex align-items-center text-light gap-3">
-            <small>Logged in as: <strong>{{ session['user_name'] }}</strong></small>
-            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="brand"><i class="fa-solid fa-fire-flame-simple"></i> LuxWarden</div>
+        <a onclick="showSection('overview', this)" class="menu-item active"><i class="fa-solid fa-chart-line"></i> Attack History</a>
+        <a onclick="showSection('domains', this)" class="menu-item"><i class="fa-solid fa-globe"></i> Domain Management</a>
+        <a onclick="showSection('rules', this)" class="menu-item"><i class="fa-solid fa-shield-halved"></i> Security Rules</a>
+        <a onclick="showSection('ip-manager', this)" class="menu-item"><i class="fa-solid fa-ban"></i> Allow & Deny IP</a>
+        <a onclick="showSection('statistics', this)" class="menu-item"><i class="fa-solid fa-chart-pie"></i> Statistics</a>
+        <a onclick="showSection('settings', this)" class="menu-item"><i class="fa-solid fa-gear"></i> Settings</a>
+        <a onclick="showSection('complaint', this)" class="menu-item"><i class="fa-solid fa-envelope"></i> Support</a>
+        <a onclick="showSection('reports', this)" class="menu-item"><i class="fa-solid fa-file-pdf"></i> Request Report</a>
+        <div style="margin-top: auto;"><a href="{{ url_for('logout') }}" class="menu-item" style="color: #ef4444;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></div>
+    </nav>
+
+    <main class="main-content">
+        <div class="header">
+            <div><h1><span id="page-title">Dashboard</span></h1><p style="color: var(--text-muted); font-size: 0.9rem;">Welcome back, {{ session['user_name'] }}.</p></div>
+            <div class="user-profile"><div class="user-info"><span class="user-name">{{ session['user_name'] }}</span><span class="user-role">{% if session['is_paid'] %}Premium{% else %}Basic{% endif %} Plan</span></div><div class="user-avatar"><i class="fa-solid fa-user"></i></div></div>
         </div>
-    </div>
-</nav>
 
-<div class="container">
-    
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}<div style="background: rgba(139, 92, 246, 0.2); border: 1px solid var(--accent-color); padding: 15px; border-radius: 10px; margin-bottom: 20px; color: white;">{{ message }}</div>{% endfor %}
+            {% endif %}
+        {% endwith %}
 
-    <div class="row">
-        
-        <div class="col-md-8">
+        <section id="overview" class="dashboard-section active">
+            <div class="glass-panel">
+                <h3><i class="fa-solid fa-wave-square"></i> 7-Day Attack Trend</h3>
+                <canvas id="trendChart" style="max-height: 250px;"></canvas>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-box"><i class="fa-solid fa-bug"></i></div><h3>Attacks Blocked</h3><div class="value">{{ logs|length }}</div></div>
+                <div class="stat-card"><div class="stat-box"><i class="fa-solid fa-globe"></i></div><h3>Active Domains</h3><div class="value">{{ domains|length }}</div></div>
+            </div>
             
-            <div class="card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3 class="m-0">Protected Websites</h3>
-                    <span class="badge bg-primary">{{ domains|length }} Active</span>
-                </div>
-                
-                {% if domains %}
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Site Name</th>
-                                <th>Target</th>
-                                <th>Proxy Link</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for domain in domains %}
-                            <tr>
-                                <td class="fw-bold">{{ domain.domain_name }}</td>
-                                <td class="text-muted small text-truncate" style="max-width: 150px;">
-                                    {{ domain.target_url }}
-                                </td>
-                                <td>
-                                    <a href="/proxy/{{ domain.id }}/" target="_blank" class="btn btn-sm btn-primary">
-                                        Visit via Proxy 🚀
-                                    </a>
-                                </td>
-                                <td>
-                                    <a href="{{ url_for('delete_domain', domain_id=domain.id) }}" 
-                                       class="btn btn-sm btn-outline-danger" 
-                                       onclick="return confirm('Stop protecting this site?')">Delete</a>
-                                </td>
-                            </tr>
-                            
-                            <tr>
-                                <td colspan="4" class="bg-light p-3 border-bottom">
-                                    <form action="{{ url_for('update_rules', domain_id=domain.id) }}" method="POST" class="d-flex gap-4 align-items-center">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        
-                                        <small class="fw-bold text-uppercase text-muted">Firewall Rules:</small>
-                                        
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" name="block_sqli" 
-                                                   {% if domain.block_sqli %}checked{% endif %} 
-                                                   onchange="this.form.submit()">
-                                            <label class="form-check-label">Block SQL Injection</label>
-                                        </div>
-                                        
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" name="block_xss" 
-                                                   {% if domain.block_xss %}checked{% endif %} 
-                                                   onchange="this.form.submit()">
-                                            <label class="form-check-label">Block XSS</label>
-                                        </div>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                    <div class="alert alert-warning text-center">
-                        No domains added yet. Add a website below to start protecting it!
-                    </div>
-                {% endif %}
+            <div class="glass-panel">
+                <h3>Recent Attack Logs</h3>
+                <table class="styled-table">
+                    <thead><tr><th>Timestamp</th><th>Domain</th><th>Type</th><th>Attacker IP</th><th>Country</th></tr></thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr><td>{{ log.timestamp }}</td><td>{{ log.domain_name }}</td><td>{{ log.attack_type }}</td><td>{{ log.attacker_ip }}</td><td>{{ log.country }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-                <hr class="my-4">
+        <section id="statistics" class="dashboard-section">
+            <div class="stats-grid">
+                <div class="glass-panel" style="text-align: center;">
+                    <h3><i class="fa-solid fa-chart-pie"></i> Attack Categories</h3>
+                    <canvas id="attackChart" style="max-height: 300px;"></canvas>
+                </div>
                 
-                <h5>Add New Website to Protect</h5>
-                <form action="{{ url_for('add_domain') }}" method="POST" class="row g-3">
+                <div class="glass-panel" style="text-align: center;">
+                    <h3><i class="fa-solid fa-earth-americas"></i> Threat Origins</h3>
+                    <canvas id="geoChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="domains" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>Add New Domain</h3>
+                <form action="{{ url_for('add_domain') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; margin: 20px 0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <div class="col-md-5">
-                        <input type="text" name="domain_name" class="form-control" placeholder="Friendly Name (e.g. My Blog)" required>
+                    <input type="text" name="domain_name" class="form-control" placeholder="Friendly Name" required>
+                    <input type="url" name="target_url" class="form-control" placeholder="Target URL (http://...)" required>
+                    <button type="submit" class="btn-primary">Add Domain</button>
+                </form>
+                <table class="styled-table">
+                    <thead><tr><th>Domain</th><th>Proxy Link</th><th>Target</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for domain in domains %}
+                        <tr><td>{{ domain.domain_name }}</td><td><a href="/proxy/{{ domain.id }}/" target="_blank" style="color: var(--accent-color);">Visit Proxy</a></td><td>{{ domain.target_url }}</td><td><a href="{{ url_for('delete_domain', domain_id=domain.id) }}" style="color: var(--danger);"><i class="fa-solid fa-trash"></i></a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="rules" class="dashboard-section">
+            {% for domain in domains %}
+            <div class="glass-panel">
+                <h3>Security Rules: {{ domain.domain_name }}</h3>
+                <form action="{{ url_for('update_rules', domain_id=domain.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div style="display: flex; justify-content: space-between; padding: 15px 0;">
+                        <span>SQL Injection Protection</span>
+                        <label class="switch"><input type="checkbox" name="block_sqli" {% if domain.block_sqli %}checked{% endif %} onchange="this.form.submit()"><span class="slider"></span></label>
                     </div>
-                    <div class="col-md-5">
-                        <input type="url" name="target_url" class="form-control" placeholder="Real URL (e.g. http://example.com)" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-success w-100">Add</button>
+                    <div style="display: flex; justify-content: space-between; padding: 15px 0;">
+                        <span>XSS Protection</span>
+                        <label class="switch"><input type="checkbox" name="block_xss" {% if domain.block_xss %}checked{% endif %} onchange="this.form.submit()"><span class="slider"></span></label>
                     </div>
                 </form>
             </div>
+            {% endfor %}
+        </section>
 
-            <div class="card p-4 mt-4">
-                <h3 class="mb-3">🚫 IP Blocking Manager</h3>
-                <p class="text-muted small">Block specific IP addresses from accessing your sites.</p>
-
-                <div class="row g-4">
-                    <div class="col-md-5">
-                        <div class="bg-light p-3 rounded">
-                            <h6 class="mb-3 fw-bold">Block a New IP</h6>
-                            {% if domains %}
-                            <form action="{{ url_for('block_ip', domain_id=domains[0].id) }}" method="POST" id="blockIpForm">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted">Select Website:</label>
-                                    <select class="form-select form-select-sm" onchange="document.getElementById('blockIpForm').action = '/block_ip/' + this.value">
-                                        {% for d in domains %}
-                                            <option value="{{ d.id }}">{{ d.domain_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label small text-muted">IP Address:</label>
-                                    <input type="text" name="ip_address" class="form-control" placeholder="e.g. 192.168.1.5" required>
-                                </div>
-                                
-                                <button type="submit" class="btn btn-danger w-100 btn-sm">Block IP Now</button>
-                            </form>
-                            {% else %}
-                                <p class="text-danger small">Add a domain above first.</p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="col-md-7">
-                        <h6 class="mb-3 fw-bold">Currently Blocked IPs</h6>
-                        {% if blocked_ips %}
-                            <div class="list-group list-group-flush border rounded" style="max-height: 250px; overflow-y: auto;">
-                                {% for entry in blocked_ips %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <span class="fw-bold font-monospace text-danger">{{ entry.ip_address }}</span>
-                                        <br>
-                                        <small class="text-muted" style="font-size: 0.75rem;">
-                                            Site: {{ entry.domain_name }}
-                                        </small>
-                                    </div>
-                                    <a href="{{ url_for('unblock_ip', ip_id=entry.id) }}" class="btn btn-sm btn-outline-secondary" title="Unblock">
-                                        &times; Unblock
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <div class="alert alert-success py-2 small">
-                                No IPs are currently blocked.
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="card p-4 mt-4">
-                <h3 class="mb-3">⚙️ Account Settings</h3>
-                <div class="row">
-                    <div class="col-md-7">
-                        <form action="{{ url_for('settings') }}" method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="change_password">
-                            
-                            <label class="form-label fw-bold small text-muted">Change Password</label>
-                            
-                            <div class="input-group mb-2">
-                                <input type="password" name="new_password" id="new_password" class="form-control" placeholder="New Password" required>
-                            </div>
-
-                            <div class="input-group mb-3">
-                                <input type="password" name="confirm_password" class="form-control" placeholder="Confirm Password" required>
-                            </div>
-
-                            <div class="p-3 bg-light border rounded mb-3">
-                                <small class="d-block text-muted fw-bold mb-1" style="font-size: 0.75rem;">Password Requirements:</small>
-                                <ul class="criteria-list">
-                                    <li class="criteria-item" id="rule-length">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        Min 8 Chars
-                                    </li>
-                                    <li class="criteria-item" id="rule-upper">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        Uppercase Letter
-                                    </li>
-                                    <li class="criteria-item" id="rule-number">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        Number
-                                    </li>
-                                    <li class="criteria-item" id="rule-special">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                        Special Char
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <button class="btn btn-outline-primary w-100" type="submit">Update Password</button>
-                        </form>
-                    </div>
-
-                    <div class="col-md-5 border-start ps-4">
-                        <label class="form-label fw-bold small text-muted">Danger Zone</label>
-                        <p class="small text-muted">Once you delete your account, there is no going back. Please be certain.</p>
-                        <form action="{{ url_for('settings') }}" method="POST" onsubmit="return confirm('Are you sure? This will delete your account and all logs permanently!');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="action" value="delete_account">
-                            <button class="btn btn-danger w-100 mt-2">🗑️ Delete Account</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-        </div> <div class="col-md-4">
-            
-            <div class="card p-3 mb-4 shadow-sm border-0">
-                <h5 class="card-title text-center mb-3">📊 Threat Overview</h5>
-                <div style="position: relative; height:200px; width:100%">
-                    <canvas id="attackChart"></canvas>
-                </div>
-            </div>
-
-            <div class="card p-4 bg-danger-soft border-danger border-opacity-25">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="text-danger m-0">🔥 Attack History</h4>
-                    
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" id="reportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            📄 Download Report
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reportDropdown">
-                            <li><h6 class="dropdown-header">Select Time Period</h6></li>
-                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='day') }}">📅 Today</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='week') }}">📆 Last 7 Days</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='month') }}">🗓️ Last 30 Days</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('generate_report', period='all') }}">♾️ All Time</a></li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="list-group list-group-flush">
-                    {% if logs %}
-                        {% for log in logs %}
-                        <div class="list-group-item bg-transparent border-danger border-opacity-25 py-3">
-                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                <span class="badge bg-danger">{{ log.attack_type }}</span>
-                                <small class="text-muted" style="font-size: 0.75rem;">{{ log.timestamp }}</small>
-                            </div>
-                            <div class="mb-1">
-                                <small class="fw-bold text-dark">Target:</small> <small>{{ log.domain_name }}</small>
-                            </div>
-                            <div class="p-2 bg-light rounded border text-break font-monospace" style="font-size: 0.75rem; max-height: 60px; overflow-y: auto;">
-                                {{ log.payload }}
-                            </div>
-                            <div class="mt-1 text-end">
-                                <small class="text-muted">Attacker IP: {{ log.attacker_ip }}</small>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center py-5">
-                            <div style="font-size: 3rem;">🛡️</div>
-                            <p class="text-muted mt-2">No attacks detected yet.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="card p-3 mt-3 shadow-sm border-0">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">🎫 Support Tickets</h5>
-                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#ticketModal">
-                        + New
-                    </button>
-                </div>
-                
-                <div class="list-group list-group-flush">
-                    {% if tickets %}
-                        {% for ticket in tickets %}
-                        <div class="list-group-item px-0 py-2 border-bottom">
-                            <div class="d-flex justify-content-between">
-                                <small class="fw-bold text-truncate" style="max-width: 150px;">{{ ticket.subject }}</small>
-                                <span class="badge rounded-pill {% if ticket.status == 'Open' %}bg-success{% else %}bg-secondary{% endif %}" style="font-size: 0.6em;">
-                                    {{ ticket.status }}
-                                </span>
-                            </div>
-                            <small class="text-muted d-block text-truncate" style="font-size: 0.75rem;">{{ ticket.message }}</small>
-                            <small class="text-muted" style="font-size: 0.65rem;">{{ ticket.created_at }}</small>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-center py-3">
-                            <small class="text-muted">No active tickets.</small>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <div class="card p-3 mt-3 bg-light">
-                <h6>Rate Limiting Status</h6>
-                <p class="small text-muted mb-0">
-                    Global Protection: <strong>Active</strong>.<br>
-                    Limit: 60 requests per minute.
-                </p>
-            </div>
-
-        </div> </div>
-</div>
-
-<div class="modal fade" id="ticketModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Open New Support Ticket</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ url_for('create_ticket') }}" method="POST">
-                <div class="modal-body">
+        <section id="ip-manager" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>Block New IP</h3>
+                <form action="#" id="blockForm" method="POST" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; margin: 20px 0;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Subject</label>
-                        <select name="subject" class="form-select">
-                            <option value="Technical Issue">Technical Issue</option>
-                            <option value="Billing Question">Billing Question</option>
-                            <option value="Feature Request">Feature Request</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Message</label>
-                        <textarea name="message" class="form-control" rows="4" placeholder="Describe your issue..." required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Submit Ticket</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                    <select class="form-control" onchange="document.getElementById('blockForm').action = '/block_ip/' + this.value">
+                        <option value="">Select Domain</option>
+                        {% for d in domains %}<option value="{{ d.id }}">{{ d.domain_name }}</option>{% endfor %}
+                    </select>
+                    <input type="text" name="ip_address" class="form-control" placeholder="IP Address">
+                    <button type="submit" class="btn-primary" style="background: var(--danger);">Block IP</button>
+                </form>
+                <table class="styled-table">
+                    <thead><tr><th>IP Address</th><th>Domain</th><th>Date Added</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for bip in blocked_ips %}
+                        <tr><td>{{ bip.ip_address }}</td><td>{{ bip.domain_name }}</td><td>{{ bip.added_at }}</td><td><a href="{{ url_for('unblock_ip', ip_id=bip.id) }}" style="color: var(--success);">Unblock</a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <section id="statistics" class="dashboard-section">
+            <div class="glass-panel" style="text-align: center;">
+                <canvas id="attackChart" style="max-height: 400px;"></canvas>
+            </div>
+        </section>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        
-        // --- 1. Chart.js Logic ---
-        const ctx = document.getElementById('attackChart');
-        if (ctx) {
-            const rawLabels = {{ chart_labels | default([]) | tojson }};
-            const rawData = {{ chart_values | default([]) | tojson }};
+        <section id="settings" class="dashboard-section">
+            <div class="glass-panel" style="max-width: 500px; margin: 0 auto; text-align: center;">
+                <h3>Account Security</h3>
+                <form action="{{ url_for('settings') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="change_password">
+                    <input type="password" name="new_password" class="form-control" placeholder="New Password" style="margin: 15px 0;">
+                    <input type="password" name="confirm_password" class="form-control" placeholder="Confirm Password" style="margin-bottom: 20px;">
+                    <button type="submit" class="btn-primary">Update Password</button>
+                </form>
+                <form action="{{ url_for('settings') }}" method="POST" style="margin-top: 30px;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="delete_account">
+                    <button type="submit" class="btn-primary" style="background: var(--danger); width: 100%;">Delete Account</button>
+                </form>
+            </div>
+        </section>
 
-            let chartLabels = rawLabels;
-            let chartData = rawData;
-            let chartColors = ['#dc3545', '#ffc107', '#0d6efd', '#6610f2', '#20c997'];
+        <section id="complaint" class="dashboard-section">
+            <div class="glass-panel" style="max-width: 600px; margin: 0 auto;">
+                <h3>Submit Support Ticket</h3>
+                <form action="{{ url_for('create_ticket') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="text" name="subject" class="form-control" placeholder="Subject" style="margin: 15px 0;">
+                    <textarea name="message" class="form-control" rows="5" placeholder="Details..."></textarea>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Send Ticket</button>
+                </form>
+            </div>
+        </section>
 
-            if (rawLabels.length === 0) {
-                chartLabels = ["No Attacks Yet"];
-                chartData = [1];
-                chartColors = ['#e9ecef'];
+        <section id="reports" class="dashboard-section">
+            <div class="stats-grid">
+                <a href="{{ url_for('generate_report', period='week') }}" class="stat-card" style="text-decoration: none;">
+                    <div class="stat-box"><i class="fa-solid fa-file-pdf"></i></div>
+                    <h3>Weekly Report</h3><p>Download last 7 days</p>
+                </a>
+                <a href="{{ url_for('generate_report', period='month') }}" class="stat-card" style="text-decoration: none;">
+                    <div class="stat-box" style="color: var(--success);"><i class="fa-solid fa-file-pdf"></i></div>
+                    <h3>Monthly Report</h3><p>Download last 30 days</p>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function showSection(sectionId, element) {
+            document.querySelectorAll('.dashboard-section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById('page-title').innerText = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
+        }
+
+        const typeCtx = document.getElementById('attackChart').getContext('2d');
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_labels|tojson }},
+                datasets: [{
+                    data: {{ chart_values|tojson }},
+                    backgroundColor: ['#8b5cf6', '#ef4444', '#10b981', '#f59e0b']
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { labels: { color: 'white' } } } }
+        });
+
+        // 2. GEO ANALYTICS CHART (Pie)
+        const geoCtx = document.getElementById('geoChart').getContext('2d');
+        new Chart(geoCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ geo_labels|tojson }},
+                datasets: [{
+                    data: {{ geo_values|tojson }},
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6']
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: 'white' } } } }
+        });
+
+        // 3. TREND LINE CHART
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|tojson }},
+                datasets: [{
+                    label: 'Attacks Blocked',
+                    data: {{ trend_values|tojson }},
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { 
+                responsive: true, 
+                scales: { 
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'white' } },
+                    x: { ticks: { color: 'white' } }
+                } 
             }
-
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: chartLabels,
-                    datasets: [{
-                        label: 'Attacks Blocked',
-                        data: chartData,
-                        backgroundColor: chartColors,
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, usePointStyle: true } }
-                    }
-                }
-            });
-        }
-
-        // --- 2. Password Validation Logic (Visual Feedback) ---
-        const passwordInput = document.getElementById('new_password');
-        if (passwordInput) {
-            const ruleLength = document.getElementById('rule-length');
-            const ruleUpper = document.getElementById('rule-upper');
-            const ruleNumber = document.getElementById('rule-number');
-            const ruleSpecial = document.getElementById('rule-special');
-
-            passwordInput.addEventListener('input', function(e) {
-                const pass = e.target.value;
-                
-                // Toggle 'valid' class based on Regex checks
-                pass.length >= 8 ? ruleLength.classList.add('valid') : ruleLength.classList.remove('valid');
-                /[A-Z]/.test(pass) ? ruleUpper.classList.add('valid') : ruleUpper.classList.remove('valid');
-                /[0-9]/.test(pass) ? ruleNumber.classList.add('valid') : ruleNumber.classList.remove('valid');
-                /[!@#$%^&*(),.?":{}|<>]/.test(pass) ? ruleSpecial.classList.add('valid') : ruleSpecial.classList.remove('valid');
-            });
-        }
-    });
-</script>
-
+        });
+    </script>
 </body>
 </html>

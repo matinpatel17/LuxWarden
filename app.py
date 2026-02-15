@@ -18,12 +18,13 @@ from fpdf import FPDF
 import io
 
 # --- IMPORT FIREWALL LOGIC ---
-# Ensure 'waf.py' is in the same folder
 try:
-    from waf import inspect_request
+    # Update this line to include get_country
+    from waf import inspect_request, get_country 
 except ImportError:
-    print("WARNING: waf.py not found. Firewall engine will not work.")
+    print("WARNING: waf.py not found.")
     def inspect_request(req, rules): return None
+    def get_country(ip): return "Unknown" # Fallback function
 
 load_dotenv()
 
@@ -320,9 +321,6 @@ def generate_report():
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session: return redirect(url_for("signin"))
-    # Note: We removed the strict payment check for testing, 
-    # but if you want it back, uncomment the next line:
-    # if not session.get("is_paid", False): return redirect(url_for("payment"))
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
@@ -356,7 +354,17 @@ def dashboard():
     """, (session["user_id"],))
     blocked_ips = cursor.fetchall()
 
-    # 4. Fetch Stats for Chart.js
+    # 4. Fetch Support Tickets
+    cursor.execute("""
+        SELECT * FROM support_tickets 
+        WHERE user_id = %s 
+        ORDER BY created_at DESC LIMIT 5
+    """, (session["user_id"],))
+    tickets = cursor.fetchall()
+
+    # --- NEW: ADVANCED STATISTICS QUERIES ---
+    
+    # Attack Type Distribution
     cursor.execute("""
         SELECT attack_type, COUNT(*) as count 
         FROM attack_logs l
@@ -364,18 +372,28 @@ def dashboard():
         WHERE d.user_id = %s
         GROUP BY attack_type
     """, (session["user_id"],))
-    stats_data = cursor.fetchall()
+    type_stats = cursor.fetchall()
     
-    chart_labels = [row['attack_type'] for row in stats_data]
-    chart_values = [row['count'] for row in stats_data]
-
-    # 5. NEW: Fetch Support Tickets
+    # Geographic Threat Sources
     cursor.execute("""
-        SELECT * FROM support_tickets 
-        WHERE user_id = %s 
-        ORDER BY created_at DESC LIMIT 5
+        SELECT country, COUNT(*) as count 
+        FROM attack_logs l
+        JOIN domains d ON l.domain_id = d.id
+        WHERE d.user_id = %s
+        GROUP BY country ORDER BY count DESC LIMIT 5
     """, (session["user_id"],))
-    tickets = cursor.fetchall()
+    geo_stats = cursor.fetchall()
+
+    # 7-Day Trend
+    cursor.execute("""
+        SELECT DATE(timestamp) as date, COUNT(*) as count 
+        FROM attack_logs l
+        JOIN domains d ON l.domain_id = d.id
+        WHERE d.user_id = %s
+        GROUP BY DATE(timestamp) 
+        ORDER BY date ASC LIMIT 7
+    """, (session["user_id"],))
+    trend_stats = cursor.fetchall()
     
     cursor.close()
     db.close()
@@ -384,9 +402,13 @@ def dashboard():
                            domains=domains, 
                            logs=logs, 
                            blocked_ips=blocked_ips,
-                           chart_labels=chart_labels, 
-                           chart_values=chart_values,
-                           tickets=tickets)
+                           tickets=tickets,
+                           chart_labels=[r['attack_type'] for r in type_stats], 
+                           chart_values=[r['count'] for r in type_stats],
+                           geo_labels=[r['country'] for r in geo_stats],
+                           geo_values=[r['count'] for r in geo_stats],
+                           trend_labels=[str(r['date']) for r in trend_stats],
+                           trend_values=[r['count'] for r in trend_stats])
 
 # --- 🎫 SUPPORT TICKET SYSTEM ---
 @app.route("/create_ticket", methods=["POST"])
@@ -566,11 +588,16 @@ def proxy_handler(domain_id, subpath):
     attack_type = inspect_request(request, domain) 
     
     if attack_type:
-        # Log and Block
+        # NEW: Resolve the country of the attacker's IP
+        attacker_country = get_country(request.remote_addr)
+        
         db = get_db_connection()
         cursor = db.cursor()
-        cursor.execute("INSERT INTO attack_logs (domain_id, attacker_ip, attack_type, payload) VALUES (%s, %s, %s, %s)", 
-                       (domain_id, request.remote_addr, attack_type, str(request.args)))
+        # UPDATE: Added 'country' and '%s' to the INSERT statement
+        cursor.execute("""
+            INSERT INTO attack_logs (domain_id, attacker_ip, attack_type, payload, country) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (domain_id, request.remote_addr, attack_type, str(request.args), attacker_country))
         db.commit()
         db.close()
         return render_template("blocked.html", attack_type=attack_type), 403

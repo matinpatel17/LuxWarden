@@ -1,4 +1,24 @@
 import re
+import requests
+
+def get_country(ip):
+    """
+    Resolves an IP address to a Country Name using a free API.
+    """
+    try:
+        # Check for local addresses to avoid API errors
+        if ip in ['127.0.0.1', '::1']:
+            return "Local Network"
+        
+        # Using ip-api.com (Free for non-commercial use)
+        response = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country", timeout=2)
+        data = response.json()
+        
+        if data.get('status') == 'success':
+            return data.get('country')
+    except Exception:
+        pass
+    return "Unknown"
 
 def inspect_request(request, domain_rules):
     """

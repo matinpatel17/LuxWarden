@@ -12,6 +12,8 @@ DROP TABLE IF EXISTS firewall_rules;
 DROP TABLE IF EXISTS blocked_ips;
 DROP TABLE IF EXISTS attack_logs;
 DROP TABLE IF EXISTS domains;
+DROP TABLE IF EXISTS contact_messages;
+DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS users;
 
 -- --------------------------------------------------------
@@ -27,6 +29,43 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
+
+CREATE TABLE contact_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50),
+    email VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(15),
+    message TEXT NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- -------------------------------------------------------
+
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+
+    user_id INT NOT NULL,
+
+    full_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NOT NULL,
+    billing_address TEXT NOT NULL,
+
+    card_holder_name VARCHAR(100) NOT NULL,
+
+    card_number_encrypted TEXT NOT NULL,
+    card_expiry VARCHAR(7) NOT NULL, -- MM/YYYY
+    cvv_hash VARCHAR(255) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_payments_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
 
 -- 4. Domains Table (Protected Websites)
 CREATE TABLE domains (
