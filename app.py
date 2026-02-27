@@ -1,4 +1,4 @@
-from flask import Flask, flash, render_template, request, redirect, url_for, session, make_response, Response
+from flask import Flask, flash, render_template, request, redirect, url_for, session, make_response, Response, jsonify
 import mysql.connector
 import re, os, requests
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -15,8 +15,9 @@ from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
 from bs4 import BeautifulSoup
 from fpdf import FPDF
+from functools import wraps 
 import io
-
+from waf import inspect_request, get_country 
 # --- IMPORT FIREWALL LOGIC ---
 try:
     # Update this line to include get_country
@@ -34,13 +35,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 # --- CSRF CONFIG ---
-# We must exempt the proxy route because external hackers won't send a CSRF token
 csrf = CSRFProtect(app)
-app.config['WTF_CSRF_EXEMPT_LIST'] = ['proxy_handler']
+app.config['WTF_CSRF_EXEMPT_LIST'] = ['proxy_handler'] 
 
 # 📧 Mail Configuration
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT'))
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
 app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS') == 'True'
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
@@ -71,13 +71,108 @@ def get_db_connection():
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME")
     )
-
 @app.route("/")
 def index():
     return render_template("index.html")
 
-# --- AUTH ROUTES ---
+# --- 👑 ADMIN DECORATOR ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("signin"))
+        
+        if not session.get("is_admin"):
+            db = get_db_connection()
+            cursor = db.cursor(dictionary=True)
+            cursor.execute("SELECT is_admin FROM users WHERE id = %s", (session["user_id"],))
+            user = cursor.fetchone()
+            db.close()
 
+            if not user or not user["is_admin"]:
+                flash("⚠️ Unauthorized: Admin access required.")
+                return redirect(url_for("dashboard"))
+            else:
+                session["is_admin"] = True 
+                
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+
+# --- 👑 ADMIN DASHBOARD ROUTES ---
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("SELECT id, full_name, email, is_paid, status, created_at FROM users WHERE is_admin = 0 ORDER BY created_at DESC")
+    customers = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT p.*, u.full_name as user_name 
+        FROM payments p 
+        JOIN users u ON p.user_id = u.id 
+        ORDER BY p.created_at DESC LIMIT 50
+    """)
+    payments = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT s.*, u.full_name, u.email, u.is_paid 
+        FROM support_tickets s 
+        JOIN users u ON s.user_id = u.id 
+        ORDER BY s.status = 'Open' DESC, s.created_at DESC
+    """)
+    tickets = cursor.fetchall()
+
+    # 🛠️ ADDED: Fetch the contact messages from the public site!
+
+    cursor.execute("SELECT * FROM contact_messages")
+    messages = cursor.fetchall()
+
+    cursor.close()
+    db.close()
+
+    return render_template("admin3.html", 
+                           customers=customers, 
+                           payments=payments, 
+                           tickets=tickets,
+                           messages=messages)
+
+@app.route("/admin/toggle_user/<int:user_id>", methods=["POST"])
+@admin_required
+@csrf.exempt 
+def toggle_user(user_id):
+    data = request.get_json()
+    new_status = data.get('status')
+
+    if new_status not in ['active', 'inactive']:
+        return jsonify({"error": "Invalid status"}), 400
+
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET status = %s WHERE id = %s", (new_status, user_id))
+    db.commit()
+    db.close()
+
+    return jsonify({"message": f"User updated to {new_status}"}), 200
+
+@app.route("/admin/update_ticket/<int:ticket_id>", methods=["POST"])
+@admin_required
+def update_ticket(ticket_id):
+    new_status = request.form.get('status') 
+    
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE support_tickets SET status = %s WHERE id = %s", (new_status, ticket_id))
+    db.commit()
+    db.close()
+    
+    flash(f"Ticket #{ticket_id} marked as {new_status}.")
+    return redirect(url_for('admin_dashboard'))
+
+# --- AUTH ROUTES ---
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -86,47 +181,30 @@ def register():
         phone = request.form.get("phone", "").strip()
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
+        
+        admin_code_input = request.form.get("admin_code", "").strip()
+        old = {"full_name": full_name, "email": email, "phone": phone}
 
-        old = {
-            "full_name": full_name,
-            "email": email,
-            "phone": phone
-        }
-
-        # --- Validations ---
         if not full_name or not email or not phone or not password or not confirm_password:
             return render_template("register.html", error="All fields are required", old=old)
-
-        if len(full_name) < 2 or len(full_name) > 50:
-            return render_template("register.html", error="Name must be between 2 and 50 characters", old=old)
         
-        if re.search(r'\d', full_name):
-            return render_template("register.html", error="Name cannot contain numbers", old=old)
-
-        try:
-            valid = validate_email(email, check_deliverability=True)
-            email = valid.normalized
-        except EmailNotValidError as e:
-            return render_template("register.html", error=str(e), old=old)
-
-        if not phone.isdigit() or len(phone) != 10:
-            return render_template("register.html", error="Mobile number must be exactly 10 digits", old=old)
-
+        if len(full_name) < 2 or len(full_name) > 50:
+             return render_template("register.html", error="Name length invalid", old=old)
         if password != confirm_password:
             return render_template("register.html", error="Passwords do not match", old=old)
 
-        if len(password) < 8:
-            return render_template("register.html", error="Password must be at least 8 characters long", old=old)
-
-        password_pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])'
-        if not re.search(password_pattern, password):
-            return render_template(
-                "register.html",
-                error="Password must contain at least one uppercase letter, one number, and one special character",
-                old=old
-            )
-
         hashed_password = generate_password_hash(password)
+
+        is_admin = 0
+        is_paid = 0
+        
+        system_secret = os.getenv("ADMIN_SECRET_CODE")
+        code_match = (system_secret and admin_code_input == system_secret)
+        domain_match = email.endswith("@luxwarden.com")
+
+        if code_match or domain_match:
+            is_admin = 1
+            is_paid = 1  
 
         try:
             db = get_db_connection()
@@ -139,18 +217,25 @@ def register():
                 return render_template("register.html", error="Email already registered", old=old)
 
             cursor.execute(
-                "INSERT INTO users (full_name, email, phone_number, password) VALUES (%s, %s, %s, %s)",
-                (full_name, email, phone, hashed_password)
+                "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, is_paid) VALUES (%s, %s, %s, %s, 'active', %s, %s)",
+                (full_name, email, phone, hashed_password, is_admin, is_paid)
             )
+            # 🛠️ FIXED: Get the new user ID and redirect to payment
+            new_user_id = cursor.lastrowid
             db.commit()
             cursor.close()
             db.close()
 
-            session["success_message"] = "Registration successful! Please sign in to continue."
-            return redirect(url_for("signin"))
+            if is_admin:
+                session["success_message"] = "Admin Registration successful! Please sign in."
+                return redirect(url_for("signin"))
+            else:
+                session["pending_payment_user_id"] = new_user_id 
+                session["error_message"] = "Registration successful! Please complete your payment to activate your account."
+                return redirect(url_for("payment"))
 
         except Exception as e:
-            return render_template("register.html", error="An error occurred during registration.", old=old)
+            return render_template("register.html", error=f"Error: {str(e)}", old=old)
 
     return render_template("register.html", old={})
 
@@ -169,45 +254,42 @@ def signin():
         cursor = db.cursor(dictionary=True)
 
         cursor.execute(
-            "SELECT id, full_name, password, is_paid FROM users WHERE email = %s",
+            "SELECT id, full_name, password, is_paid, is_admin, status FROM users WHERE email = %s",
             (email,)
         )
         user = cursor.fetchone()
-
         cursor.close()
         db.close()
 
         if not user:
-            return render_template("signin.html", error="Email not registered. Please register first.", old=old)
+            return render_template("signin.html", error="Email not registered.", old=old)
+
+        if user.get("status") == "inactive":
+             return render_template("signin.html", error="Account suspended. Contact support.", old=old)
 
         if not check_password_hash(user["password"], password):
-            return render_template("signin.html", error="Incorrect password. Try again.", old=old)
+            return render_template("signin.html", error="Incorrect password.", old=old)
 
-        # --- LOGIN SUCCESS ---
         session.clear()
         session["user_id"] = user["id"]
         session["user_name"] = user["full_name"]
         session["logged_in"] = True
+        session["is_paid"] = bool(user["is_paid"])
+        session["is_admin"] = bool(user["is_admin"]) 
         
-        is_paid = bool(user["is_paid"])
-        session["is_paid"] = is_paid
+        if session["is_admin"]:
+            return redirect(url_for("admin_dashboard"))
 
-        if is_paid:
+        if session["is_paid"]:
             return redirect(url_for("dashboard"))
         else:
-            session["error_message"] = "Please complete your payment to access the dashboard."
+            session["error_message"] = "Please complete payment to access dashboard."
             return redirect(url_for("payment"))
 
     success_msg = session.pop("success_message", None)
     error_msg = session.pop("error_message", None)
     
-    # FIX: old={} prevents UndefinedError on page load
-    return render_template(
-        "signin.html", 
-        success=success_msg, 
-        error=error_msg, 
-        old={}
-    )
+    return render_template("signin.html", success=success_msg, error=error_msg, old={})
 
 @app.route("/logout")
 def logout():
@@ -216,15 +298,23 @@ def logout():
     return redirect(url_for("signin"))
 
 # --- 📄 PDF REPORT GENERATOR ---
-# --- 📄 PDF REPORT GENERATOR (With Date Filtering) ---
 @app.route("/generate_report")
 def generate_report():
     if "user_id" not in session: return redirect(url_for("signin"))
     
-    # 1. Get the filter from the URL (default to 'all' if missing)
+    target_user_id = request.args.get('user_id', session["user_id"])
+    
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT is_admin FROM users WHERE id = %s", (session["user_id"],))
+    admin_check = cursor.fetchone()
+    
+    if str(target_user_id) != str(session["user_id"]):
+        if not admin_check or not admin_check['is_admin']:
+            return "Unauthorized", 403
+
     period = request.args.get('period', 'all')
     
-    # 2. Build the SQL Query based on the period
     base_query = """
         SELECT l.timestamp, d.domain_name, l.attack_type, l.attacker_ip, l.payload 
         FROM attack_logs l 
@@ -232,11 +322,11 @@ def generate_report():
         WHERE d.user_id = %s 
     """
     
-    params = [session["user_id"]]
-    period_text = "All Time History" # Title for the PDF
+    params = [target_user_id]
+    period_text = "All Time History"
 
     if period == 'day':
-        base_query += " AND l.timestamp >= CURDATE()" # Since midnight today
+        base_query += " AND l.timestamp >= CURDATE()" 
         period_text = "Report: Today"
     elif period == 'week':
         base_query += " AND l.timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
@@ -247,57 +337,35 @@ def generate_report():
     
     base_query += " ORDER BY l.timestamp DESC"
 
-    # 3. Execute Query
-    db = get_db_connection()
-    cursor = db.cursor(dictionary=True)
     cursor.execute(base_query, tuple(params))
     logs = cursor.fetchall()
     db.close()
 
-    # 4. Create PDF (Updated with Dynamic Title)
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 15)
             self.cell(0, 10, 'LuxWarden Security Report', 0, 1, 'C')
             self.set_font('Arial', 'I', 10)
-            self.cell(0, 10, f'Period: {period_text}', 0, 1, 'C') # Show the period in header
+            self.cell(0, 10, f'Period: {period_text}', 0, 1, 'C') 
             self.ln(5)
-
-        def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=10)
-
-    # 5. Add Summary Section
-    pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, f"Total Incidents Found: {len(logs)}", 0, 1)
     
-    if not logs:
-        pdf.set_font("Arial", 'I', 10)
-        pdf.cell(0, 10, "Great news! No attacks were detected during this period.", 0, 1)
-    
-    pdf.ln(5)
-
     if logs:
-        # Table Header
-        pdf.set_fill_color(200, 220, 255)
         pdf.set_font("Arial", 'B', 9)
-        pdf.cell(40, 8, "Time", 1, 0, 'C', True)
-        pdf.cell(40, 8, "Domain", 1, 0, 'C', True)
-        pdf.cell(30, 8, "Type", 1, 0, 'C', True)
-        pdf.cell(30, 8, "Attacker IP", 1, 0, 'C', True)
-        pdf.cell(50, 8, "Payload (Snippet)", 1, 1, 'C', True)
+        pdf.cell(40, 8, "Time", 1)
+        pdf.cell(40, 8, "Domain", 1)
+        pdf.cell(30, 8, "Type", 1)
+        pdf.cell(30, 8, "IP", 1)
+        pdf.cell(50, 8, "Payload", 1, 1)
 
-        # Table Rows
         pdf.set_font("Arial", size=8)
         for log in logs:
             time_str = str(log['timestamp'])[0:16]
-            payload_short = log['payload'][0:25] + "..." if len(log['payload']) > 25 else log['payload']
-            
+            payload_short = log['payload'][0:25]
             pdf.cell(40, 8, time_str, 1)
             pdf.cell(40, 8, log['domain_name'], 1)
             pdf.cell(30, 8, log['attack_type'], 1)
@@ -305,27 +373,22 @@ def generate_report():
             pdf.cell(50, 8, payload_short, 1)
             pdf.ln()
 
-    # 6. Output
     try:
         pdf_output = pdf.output(dest='S').encode('latin-1', 'replace') 
     except:
         pdf_output = pdf.output(dest='S').encode('latin-1', 'ignore')
 
-    filename = f"security_report_{period}.pdf"
-    
     return Response(pdf_output, mimetype='application/pdf', 
-                    headers={'Content-Disposition': f'attachment;filename={filename}'})
+                    headers={'Content-Disposition': f'attachment;filename=report.pdf'})
 
-# --- 🛡️ NEW DASHBOARD & FIREWALL ROUTES ---
-
+# --- 🛡️ USER DASHBOARD ROUTES ---
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session: return redirect(url_for("signin"))
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
-    
-    # 1. Fetch Domains
+     # 1. Fetch Domains
     cursor.execute("""
         SELECT d.*, r.block_sqli, r.block_xss, r.block_ip 
         FROM domains d 
@@ -333,7 +396,6 @@ def dashboard():
         WHERE d.user_id = %s
     """, (session["user_id"],))
     domains = cursor.fetchall()
-
     # 2. Fetch Recent Attacks (Logs)
     cursor.execute("""
         SELECT l.*, d.domain_name 
@@ -343,7 +405,6 @@ def dashboard():
         ORDER BY l.timestamp DESC LIMIT 10
     """, (session["user_id"],))
     logs = cursor.fetchall()
-
     # 3. Fetch Blocked IPs
     cursor.execute("""
         SELECT b.*, d.domain_name 
@@ -353,28 +414,20 @@ def dashboard():
         ORDER BY b.added_at DESC
     """, (session["user_id"],))
     blocked_ips = cursor.fetchall()
-
-    # 4. Fetch Support Tickets
+     # 4. Fetch Support Tickets
     cursor.execute("""
         SELECT * FROM support_tickets 
         WHERE user_id = %s 
         ORDER BY created_at DESC LIMIT 5
     """, (session["user_id"],))
     tickets = cursor.fetchall()
-
-    # --- NEW: ADVANCED STATISTICS QUERIES ---
+    
+     # --- NEW: ADVANCED STATISTICS QUERIES ---
     
     # Attack Type Distribution
-    cursor.execute("""
-        SELECT attack_type, COUNT(*) as count 
-        FROM attack_logs l
-        JOIN domains d ON l.domain_id = d.id
-        WHERE d.user_id = %s
-        GROUP BY attack_type
-    """, (session["user_id"],))
+    cursor.execute("SELECT attack_type, COUNT(*) as count FROM attack_logs l JOIN domains d ON l.domain_id = d.id WHERE d.user_id = %s GROUP BY attack_type", (session["user_id"],))
     type_stats = cursor.fetchall()
-    
-    # Geographic Threat Sources
+     # Geographic Threat Sources
     cursor.execute("""
         SELECT country, COUNT(*) as count 
         FROM attack_logs l
@@ -383,8 +436,7 @@ def dashboard():
         GROUP BY country ORDER BY count DESC LIMIT 5
     """, (session["user_id"],))
     geo_stats = cursor.fetchall()
-
-    # 7-Day Trend
+     # 7-Day Trend
     cursor.execute("""
         SELECT DATE(timestamp) as date, COUNT(*) as count 
         FROM attack_logs l
@@ -394,7 +446,7 @@ def dashboard():
         ORDER BY date ASC LIMIT 7
     """, (session["user_id"],))
     trend_stats = cursor.fetchall()
-    
+
     cursor.close()
     db.close()
 
@@ -414,7 +466,6 @@ def dashboard():
 @app.route("/create_ticket", methods=["POST"])
 def create_ticket():
     if "user_id" not in session: return redirect(url_for("signin"))
-    
     subject = request.form.get("subject")
     message = request.form.get("message")
     
@@ -441,36 +492,28 @@ def create_ticket():
 @app.route("/add_domain", methods=["POST"])
 def add_domain():
     if "user_id" not in session: return redirect(url_for("signin"))
-    
     domain_name = request.form.get("domain_name")
     target_url = request.form.get("target_url")
-    
-    # Generate a unique proxy slug
+     # Generate a unique proxy slug
     proxy_slug = f"{session['user_id']}-{secrets.token_hex(4)}"
 
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        
-        # 1. Insert Domain
-        cursor.execute(
-            "INSERT INTO domains (user_id, domain_name, target_url, proxy_url) VALUES (%s, %s, %s, %s)",
-            (session["user_id"], domain_name, target_url, proxy_slug)
-        )
+
+         # 1. Insert Domain
+        cursor.execute("INSERT INTO domains (user_id, domain_name, target_url, proxy_url) VALUES (%s, %s, %s, %s)",
+        (session["user_id"], domain_name, target_url, proxy_slug))
         domain_id = cursor.lastrowid
-        
-        # 2. Insert Default Rules
-        cursor.execute(
-            "INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 0, 0)",
-            (domain_id,)
-        )
-        
+
+         # 2. Insert Default Rules
+        cursor.execute("INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 0, 0)", (domain_id,))
         db.commit()
         cursor.close()
         db.close()
         flash("Domain added successfully!")
     except Exception as e:
-        flash(f"Error adding domain: {str(e)}")
+        flash(f"Error: {str(e)}")
         
     return redirect(url_for("dashboard"))
 
@@ -506,11 +549,11 @@ def update_rules(domain_id):
     return redirect(url_for("dashboard"))
 
 # --- 🚫 IP BLOCKING ROUTES ---
-
 @app.route("/block_ip/<int:domain_id>", methods=["POST"])
 def block_ip(domain_id):
     if "user_id" not in session: return redirect(url_for("signin"))
     
+    # Strip any hidden spaces from the form input
     ip_address = request.form.get("ip_address", "").strip()
     
     # Basic IP validation regex
@@ -521,7 +564,7 @@ def block_ip(domain_id):
     try:
         db = get_db_connection()
         cursor = db.cursor()
-        # Check if already blocked
+           # Check if already blocked
         cursor.execute("SELECT id FROM blocked_ips WHERE domain_id = %s AND ip_address = %s", (domain_id, ip_address))
         if cursor.fetchone():
             flash("IP is already blocked.")
@@ -562,14 +605,14 @@ def ratelimit_handler(e):
 @app.route("/proxy/<int:domain_id>/", defaults={'subpath': ''}, methods=["GET", "POST", "PUT", "DELETE"])
 @app.route("/proxy/<int:domain_id>/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE"])
 @csrf.exempt 
-@limiter.limit("60 per minute") # <--- NEW: Rate Limit (1 request per second)
+@limiter.limit("60  per minute") # <--- NEW: Rate Limit (1 request per second)
 def proxy_handler(domain_id, subpath):
-    # 1. Fetch Domain
+    #1. Fetch domain
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT d.target_url, r.block_sqli, r.block_xss FROM domains d JOIN firewall_rules r ON d.id = r.domain_id WHERE d.id = %s", (domain_id,))
     domain = cursor.fetchone()
-
+    
     # --- NEW: Check IP Blocklist ---
     cursor.execute("SELECT ip_address FROM blocked_ips WHERE domain_id = %s", (domain_id,))
     blocked_list = [row['ip_address'] for row in cursor.fetchall()]
@@ -586,7 +629,7 @@ def proxy_handler(domain_id, subpath):
     # 2. INSPECT TRAFFIC (Firewall Check)
     # Note: We pass 'domain' as the rules object since it has the block_sqli/xss keys
     attack_type = inspect_request(request, domain) 
-    
+
     if attack_type:
         # NEW: Resolve the country of the attacker's IP
         attacker_country = get_country(request.remote_addr)
@@ -601,15 +644,12 @@ def proxy_handler(domain_id, subpath):
         db.commit()
         db.close()
         return render_template("blocked.html", attack_type=attack_type), 403
-
+    
     # 3. FORWARD TRAFFIC
     # Construct the destination URL
-    if subpath:
-        target_url = f"{domain['target_url']}/{subpath}"
-    else:
-        target_url = domain['target_url']
-
-    # Clean headers
+    if subpath: target_url = f"{domain['target_url']}/{subpath}"
+    else: target_url = domain['target_url']
+     # Clean headers
     req_headers = {k: v for k, v in request.headers if k.lower() not in ['host', 'accept-encoding']}
     
     try:
@@ -619,47 +659,45 @@ def proxy_handler(domain_id, subpath):
             headers=req_headers,
             data=request.get_data(),
             params=request.args,
-            allow_redirects=True
+            allow_redirects=True,
+            timeout=10 
         )
-
         # 4. REWRITE LINKS (The Fix for "Not Found")
         # We only rewrite HTML pages, not images or JSON
         content = resp.content
         if 'text/html' in resp.headers.get('Content-Type', ''):
             soup = BeautifulSoup(content, 'html.parser')
-            
+
             # This is the prefix we want to add to all links
             proxy_prefix = f"/proxy/{domain_id}"
 
-            # Fix <a href="..."> links
+              # Fix <a href="..."> links
             for tag in soup.find_all(['a', 'link'], href=True):
-                if tag['href'].startswith('/'):
+                if tag['href'].startswith('/'): 
                     tag['href'] = proxy_prefix + tag['href']
 
-            # Fix <form action="..."> (This fixes the Google Search button!)
+                    # Fix <form action="..."> (This fixes the Google Search button!)
             for tag in soup.find_all('form', action=True):
                 if tag['action'].startswith('/'):
                     tag['action'] = proxy_prefix + tag['action']
-            
-            # Fix <img src="..."> and <script src="...">
+
+                  # Fix <img src="..."> and <script src="...">   
             for tag in soup.find_all(['img', 'script'], src=True):
-                if tag['src'].startswith('/'):
+                if tag['src'].startswith('/'): 
                     tag['src'] = proxy_prefix + tag['src']
 
             content = str(soup)
 
-        # Return the modified response
+         # Return the modified response
         excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items()
-                   if name.lower() not in excluded_headers]
+        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
 
         return Response(content, resp.status_code, headers)
 
     except Exception as e:
         return f"Error connecting to protected server: {e}", 502
-
-# --- EXISTING PAYMENT & CONTACT ---
-
+    
+# --- CONTACT ROUTE ---
 @app.route("/contact", methods=["GET", "POST"])
 def contact():
     if request.method == "POST":
@@ -739,6 +777,7 @@ def contact():
 
     return render_template("contact.html", success=success, error=error, old=old)
 
+# --- PAYMENT ROUTE ---
 @app.route("/payment", methods=["GET", "POST"])
 def payment():
     if "user_id" not in session:
@@ -845,7 +884,7 @@ def payment():
 
     return render_template("payment.html", success=success, error=error, old=old)
 
-# --- PASSWORD RESET ROUTES ---
+    # --- PASSWORD RESET ROUTES ---
 
 @app.route("/reset_request", methods=["GET", "POST"])
 def reset_request():
@@ -992,4 +1031,3 @@ def add_header(response):
 
 if __name__ == "__main__":
     app.run(debug=True)
-

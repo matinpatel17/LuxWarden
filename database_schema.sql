@@ -108,3 +108,12 @@ CREATE TABLE `contact_messages` (
   `message` text NOT NULL,
   `submitted_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users ADD COLUMN status ENUM('active', 'inactive') DEFAULT 'active';
+
+-- 1. Add the admin column if it doesn't exist
+ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
+
+-- 2. CRITICAL: Update Support Tickets to allow 'Resolved' status
+-- (Without this, the "Mark Resolved" button will crash your app)
+ALTER TABLE support_tickets MODIFY COLUMN status ENUM('Open', 'In Progress', 'Resolved', 'Closed') DEFAULT 'Open';

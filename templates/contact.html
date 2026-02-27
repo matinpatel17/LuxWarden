@@ -74,15 +74,33 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s ease;
         }
-        .logo-svg {
-            width: 32px;
-            height: 32px;
-            transition: transform 0.3s ease;
+
+        /* Logo scale for the top bar */
+        .logo-img {
+            height: 30px; 
+            width: auto;
+            display: block;
+            object-fit: contain;
         }
-        .logo-group:hover .logo-svg {
-            transform: scale(1.05);
+
+        .logo-text {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        @media (max-width: 768px) {
+            .logo-img {
+                height: 50px;
+                width: auto;
+            }
+
+            .logo-img span,
+            .logo-img h1 {
+                font-size: 2.2rem;
+            }
         }
 
         .nav-links {
@@ -156,6 +174,40 @@
             justify-content: center;
             padding: 140px 20px 80px;
             text-align: center;
+        }
+         .hero-logo-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+
+            margin-bottom: 18px;   /* creates space before "Get in touch" */
+        }
+
+        .hero-logo-box img {
+            height: 64px;          /* 👈 key change */
+            width: auto;
+            object-fit: contain;
+        }
+
+        .hero-logo-box span,
+        .hero-logo-box h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            .logo-group {
+                gap: 8px;
+            }
+
+            .logo-img {
+                height: 36px;
+            }
+
+            .logo-text {
+                font-size: 1.15rem;
+            }
         }
 
         .page-heading {
@@ -440,16 +492,10 @@
     <div class="ambient-glow glow-2"></div>
 
     <header>
-        <div class="logo-group">
-            <svg class="logo-svg" viewBox="0 0 40 40" fill="none">
-                <path d="M4 14H12V20H4V14Z" fill="white"/>
-                <path d="M14 14H22V20H14V14Z" fill="white"/>
-                <path d="M8 22H18V28H8V22Z" fill="white"/>
-                <path d="M4 22H6V28H4V22Z" fill="white"/>
-                <path d="M26 12C26 12 32 8 32 18C32 23 29 27 25 27" fill="#8b5cf6"/>
-                <path d="M25 10C25 10 34 5 34 18C34 25 29 30 25 30" fill="#7c3aed" fill-opacity="0.5"/>
-            </svg>
-        </div>
+       <a href="#" class="logo-group">
+            <img src="{{ url_for('static', filename='images/Luxlogo.png') }}" alt="LuxWarden" class="logo-img">
+            <span class="logo-text">LuxWarden</span>
+        </a>
         <div class="nav-links">
             <li class="nav-item"><a href="{{ url_for('index') }}">Home</a></li>
             <li class="nav-item"><a href="{{ url_for('index') }}#Features">Features</a></li>
@@ -468,6 +514,13 @@
     </header>
 
     <main>
+        <div class="brand-header" >
+            <div class="brand-title">
+                <div class="hero-logo-box">
+                <img src="{{ url_for('static', filename='images/Luxlogo.png') }}"  alt="LuxWarden" class="hero-logo-img">
+                LuxWarden
+                </div>
+            </div>
         <h1 class="page-heading">Get in <span>touch</span></h1>
 
         <div class="contact-card">

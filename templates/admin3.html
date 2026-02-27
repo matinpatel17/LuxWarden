@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxWarden - Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS VARIABLES --- */
+        :root {
+            --accent-color: #9d4edd; 
+            --accent-glow: rgba(157, 78, 221, 0.3);
+            --bg-body: #050511;
+            --text-muted: #94a3b8;
+            --glass-bg: rgba(22, 22, 36, 0.95);
+            --border: 1px solid rgba(255, 255, 255, 0.1);
+            --success: #10b981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-body); color: white; display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #0a0a12;
+            border-right: var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        /* 🛠️ UPDATED: Brand Logo CSS */
+        .brand { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-bottom: 40px; 
+            padding: 5px 0;
+        }
+        
+        .logo-img {
+            height: 32px; 
+            width: auto;
+            display: block;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4)); 
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Sidebar Hover Effect */
+        .menu-item {
+            padding: 14px 15px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            margin-bottom: 8px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .menu-item:hover { 
+            color: white; 
+            background: rgba(255, 255, 255, 0.03); 
+            transform: translateX(5px); 
+        }
+        .menu-item.active { 
+            background: linear-gradient(90deg, rgba(157, 78, 221, 0.15), transparent); 
+            color: white; 
+            border-left: 3px solid var(--accent-color); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+        }
+
+        /* Main Content */
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; position: relative; }
+        
+        /* Profile & Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .user-profile { 
+            display: flex; align-items: center; gap: 15px; 
+            background: rgba(255, 255, 255, 0.05); padding: 10px 20px; 
+            border-radius: 50px; border: var(--border); 
+            cursor: pointer; transition: all 0.3s ease; position: relative; z-index: 50;
+        }
+        .user-profile:hover {
+            border-color: var(--accent-color); background: rgba(157, 78, 221, 0.15);
+            box-shadow: 0 0 20px var(--accent-glow); transform: translateY(-3px);
+        }
+        .user-name { display: block; font-weight: bold; font-size: 0.9rem; }
+        .user-role { font-size: 0.75rem; color: var(--accent-color); text-transform: uppercase; }
+        .user-avatar { width: 40px; height: 40px; background: var(--accent-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+        /* Cards & Panels */
+        .dashboard-section { display: none; animation: fadeIn 0.4s ease; }
+        .glass-panel { background: var(--glass-bg); border: var(--border); border-radius: 15px; padding: 30px; margin-bottom: 20px; }
+        
+        /* List Items Hover Effect */
+        .admin-list-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(255, 255, 255, 0.03); padding: 20px; 
+            margin-bottom: 15px; border-radius: 12px; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid var(--border);
+        }
+        .admin-list-item:hover { 
+            background: rgba(157, 78, 221, 0.05); 
+            border-color: var(--accent-color);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 0 15px var(--accent-glow);
+        }
+
+        /* Search Components */
+        .search-wrapper { position: relative; width: 300px; }
+        .search-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .form-control {
+            background: rgba(0, 0, 0, 0.2); border: var(--border); color: white;
+            padding: 12px 16px 12px 40px; border-radius: 50px; width: 100%; font-size: 0.95rem; transition: 0.3s;
+        }
+        .form-control:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 10px var(--accent-glow); }
+
+        /* Report Grid & Hover Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-top: 20px; }
+        .stat-card {
+            background: linear-gradient(145deg, #1a1a2e, #13131f);
+            padding: 40px; border-radius: 20px; text-align: center; border: var(--border);
+            transition: all 0.3s ease; cursor: pointer;
+        }
+        .stat-card:hover { 
+            transform: translateY(-10px); 
+            border-color: var(--accent-color); 
+            box-shadow: 0 15px 30px var(--accent-glow); 
+        }
+        .stat-box {
+            width: 60px; height: 60px; background: rgba(157, 78, 221, 0.1);
+            border-radius: 15px; margin: 0 auto 20px; display: flex;
+            align-items: center; justify-content: center; font-size: 1.8rem; color: var(--accent-color);
+            transition: 0.3s;
+        }
+        .stat-card:hover .stat-box { background: var(--accent-color); color: white; }
+
+        /* Badges */
+        .badge { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: var(--success); color: black; }
+        .badge-inactive { background: #333; color: #aaa; }
+        .badge-pro { background: #1e1e2d; color: #fff; border: 1px solid #333; margin-right: 5px; text-transform: uppercase; }
+
+        /* Tables Hover Effect */
+        .styled-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .styled-table th { color: var(--text-muted); text-align: left; padding: 10px 20px; font-size: 0.85rem; text-transform: uppercase; }
+        .styled-table tr { background: rgba(255, 255, 255, 0.03); transition: all 0.3s ease; border-radius: 8px; }
+        .styled-table tr:hover { 
+            background: rgba(157, 78, 221, 0.08); 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .styled-table td { padding: 20px; }
+        .highlight-row { background: rgba(157, 78, 221, 0.1) !important; }
+
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 900px) {
+            .sidebar { position: absolute; left: -260px; }
+            .main-content { margin-left: 0; }
+            .search-wrapper { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="brand">
+            <img src="{{ url_for('static', filename='images/Luxlogo.png') }}" alt="LuxWarden" class="logo-img">
+            <span class="logo-text">LuxWarden</span>
+        </div>
+        
+        <div class="menu-item active" onclick="switchTab('customer', this)"><i class="fa-solid fa-users"></i> Customers</div>
+        <div class="menu-item" onclick="switchTab('report', this)"><i class="fa-solid fa-file-pdf"></i> Reports</div>
+        <div class="menu-item" onclick="switchTab('payment', this)"><i class="fa-solid fa-credit-card"></i> Payments</div>
+        <div class="menu-item" onclick="switchTab('support', this)"><i class="fa-solid fa-headset"></i> Support</div>
+        <div class="menu-item" onclick="switchTab('inbox', this)"><i class="fa-solid fa-envelope"></i> Messages</div>
+        <div style="margin-top: auto;">
+            <a href="{{ url_for('logout') }}" class="menu-item" style="color: #ef4444;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="header">
+            <div>
+                <h2 style="margin: 0;">Admin <span style="color:var(--accent-color)">Dashboard</span></h2>
+                <p style="color: var(--text-muted); margin-top: 5px;">System Overview</p>
+            </div>
+            <div class="user-profile">
+                <div class="user-info">
+                    <span class="user-name">{{ session['user_name'] }}</span>
+                    <span class="user-role">Super Admin</span>
+                </div>
+                <div class="user-avatar"><i class="fa-solid fa-user-gear"></i></div>
+            </div>
+        </div>
+
+        <div id="customer" class="dashboard-section" style="display: block;">
+            <div class="glass-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px;">
+                    <div>
+                        <h3>Customer Management</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem;">Manage user access and status</p>
+                    </div>
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" class="form-control" placeholder="Search Customer" id="customerSearchInput" onkeyup="filterCustomers()">
+                    </div>
+                </div>
+
+                <div id="customerList">
+                    {% for customer in customers %}
+                    <div class="admin-list-item customer-item">
+                        <div>
+                            <h4 class="c-name">{{ customer.full_name }}</h4>
+                            <p class="c-email" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">{{ customer.email }}</p>
+                            <div>
+                                {% if customer.is_paid %}<span class="badge badge-pro">Pro</span>{% endif %}
+                                <span id="status-text-{{ customer.id }}" class="badge {% if customer.status == 'active' %}badge-active{% else %}badge-inactive{% endif %}">
+                                    {{ customer.status }}
+                                </span>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" onchange="toggleUser('{{ customer.id }}', this)" {% if customer.status == 'active' %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    {% else %}<p style="text-align: center; color: #aaa;">No customers found.</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div id="report" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>System Reports</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">Generate security audits for users</p>
+                
+                <label style="font-size: 0.85rem; color: var(--text-muted);">Target User:</label>
+                <select id="reportUserSelect" class="form-control" style="margin: 10px 0 30px 0; padding-left: 15px; width: 100%; max-width: 400px;">
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.full_name }} ({{ customer.email }})</option>
+                    {% endfor %}
+                </select>
+
+                <div class="stats-grid">
+                    <div class="stat-card" onclick="downloadReport('week')">
+                        <div class="stat-box"><i class="fa-solid fa-shield-halved"></i></div>
+                        <h3>Weekly Reports</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px;">Audit for last 7 days</p>
+                    </div>
+                    <div class="stat-card" onclick="downloadReport('month')">
+                        <div class="stat-box" style="color: var(--success);"><i class="fa-solid fa-calendar-check"></i></div>
+                        <h3>Monthly Reports</h3>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px;">Audit for last 30 days</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="payment" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>Payment Management</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Track customer transactions</p>
+                <div style="overflow-x: auto;">
+                    <table class="styled-table">
+                        <thead><tr><th>Transaction</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr class="{% if loop.index is even %}highlight-row{% endif %}">
+                                <td><span style="color:white; font-weight:500;">Payment From {{ payment.user_name }}</span></td>
+                                <td>{{ payment.created_at }}</td>
+                                <td>$49.00</td>
+                                <td><span class="badge" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">Completed</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="support" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>Customer Support</h3>
+                {% for ticket in tickets %}
+                <div class="admin-list-item">
+                   <div>
+                        <strong>{{ ticket.subject }}</strong> <span class="badge" style="background:#444;">{{ ticket.status }}</span>
+                        <p style="margin-top: 5px; font-size: 0.9rem; color: #ccc;">"{{ ticket.message }}"</p>
+                        <small style="color: var(--text-muted);">User: {{ ticket.full_name }}</small><br>
+                       <small>Email: <span style="color:  var(--text-muted);">{{ ticket.email }}</span></small>
+                    </div>
+                    {% if ticket.status != 'Resolved' %}
+                    <form action="{{ url_for('update_ticket', ticket_id=ticket.id) }}" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="status" value="Resolved">
+                        <button type="submit" style="padding: 8px 15px; background: var(--success); color: black; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s ease;">Resolve</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div id="inbox" class="dashboard-section">
+            <div class="glass-panel">
+                <h3>Public Inbox</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Messages from the public contact form</p>
+                
+                {% for msg in messages %}
+                <div class="admin-list-item">
+                   <div style="width: 100%;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>{{ msg.first_name }} {{ msg.last_name }}</strong>
+                            <span class="badge badge-pro">New</span>
+                        </div>
+                        <p style="margin-top: 10px; font-size: 0.95rem; color: #fff; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border-left: 3px solid var(--accent-color);">
+                            "{{ msg.message }}"
+                        </p>
+                        <div style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 20px;">
+                            <span><i class="fa-solid fa-envelope" style="color: var(--accent-color);"></i> {{ msg.email }}</span>
+                            <span><i class="fa-solid fa-phone" style="color: var(--accent-color);"></i> {{ msg.phone_number }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">No messages in the inbox yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.dashboard-section').forEach(div => div.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+        }
+
+        function filterCustomers() {
+            let input = document.getElementById('customerSearchInput').value.toLowerCase();
+            let items = document.getElementsByClassName('customer-item');
+            for (let item of items) {
+                let text = item.querySelector('.c-name').innerText.toLowerCase() + item.querySelector('.c-email').innerText.toLowerCase();
+                item.style.display = text.includes(input) ? "flex" : "none";
+            }
+        }
+
+        function toggleUser(userId, checkbox) {
+            const status = checkbox.checked ? 'active' : 'inactive';
+            fetch(`/admin/toggle_user/${userId}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: status })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const badge = document.getElementById(`status-text-${userId}`);
+                badge.innerText = status;
+                badge.className = `badge badge-${status}`;
+            }).catch(() => checkbox.checked = !checkbox.checked);
+        }
+
+        function downloadReport(period) {
+            const userId = document.getElementById('reportUserSelect').value;
+            if(!userId) return alert("Select a user");
+            window.location.href = `/generate_report?period=${period}&user_id=${userId}`;
+        }
+    </script>
+</body>
+</html>

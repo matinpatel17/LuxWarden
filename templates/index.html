@@ -6,20 +6,23 @@
     <title>LuxWarden - Cyber Security</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <nav class="navbar">
-        <div class="logo">
-            <i class="fa-solid fa-fire-flame-simple logo-icon"></i>
-            <span>LuxWarden</span>
-        </div>
+        <a href="#" class="logo-group">
+            <img src="{{ url_for('static', filename='images/Luxlogo.png') }}" alt="LuxWarden" class="logo-img">
+            <span class="logo-text">LuxWarden</span>
+        </a>
+
         <div class="nav-links">
             <a href="#Home">Home</a>
             <a href="{% if request.endpoint == 'index' %}#Features{% else %}{{ url_for('index') }}#Features{% endif %}">Features</a>
             <a href="#Pricing">Pricing</a>
             <a href="{{ url_for('contact') }}">Contact</a>
         </div>
+        
         <div class="auth-buttons">
             <a href="{{ url_for('signin') }}" class="btn-signin">Sign In</a>
             <a href="{{ url_for('register') }}" class="btn-register">Register</a>
@@ -39,9 +42,6 @@
         <div class="hero-image">
             <div class="image-wrapper">
                 <img src="{{ url_for('static', filename='images/Shield.png') }}" alt="Security Shield Background" class="glow-bg">
-                <!--<div class="shield-overlay">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>-->
             </div>
         </div>
     </section>
@@ -90,14 +90,14 @@
             </div>
         </div>
     </section>
-<section class="how-it-works">
+    
+    <section class="how-it-works">
         <div class="section-header">
             <h2>How Lux<span class="gradient-text">Warden</span> Works</h2>
         </div>
         <img src="{{ url_for('static', filename='images/howluxwardenworks.png') }}" alt="How LuxWarden Works" class="how-it-workslux">
-
     </section>
-    <!--Pricing Section-->
+
     <section class="pricing" id="Pricing">
         <div class="section-header">
             <h2>Plans <span class="gradient-text">and</span> Pricing</h2>
@@ -131,15 +131,13 @@
             </div>
         </div>
     </section>
-    <br>
-    <br> 
-    <br>
-    <br>     
+    
+    <br><br><br><br>     
+    
     <footer>
         <div class="footer-content">
             <div class="footer-left">
-                <h3>Do you have <br>
-                     any Questions?</h3>
+                <h3>Do you have <br> any Questions?</h3>
                 <p>Feel free to send us your questions or feedback.</p>
                 <a href="{{ url_for('contact') }}" class="btn-contact">Contact us</a>
                 
