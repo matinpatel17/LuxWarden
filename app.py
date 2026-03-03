@@ -185,16 +185,53 @@ def register():
         admin_code_input = request.form.get("admin_code", "").strip()
         old = {"full_name": full_name, "email": email, "phone": phone}
 
+        # 1. Check if all fields are filled
         if not full_name or not email or not phone or not password or not confirm_password:
             return render_template("register.html", error="All fields are required", old=old)
         
+        # 2. Name Validation (Length and Numbers)
         if len(full_name) < 2 or len(full_name) > 50:
-             return render_template("register.html", error="Name length invalid", old=old)
+            return render_template("register.html", error="Name must be between 2 and 50 characters", old=old)
+        
+        if re.search(r'\d', full_name):
+            return render_template("register.html", error="Name cannot contain numbers", old=old)
+
+        # 3. Email Deliverability Validation
+        try:
+            # 🛠️ VIP Bypass: If it is your admin domain, skip the internet check
+            if email.endswith("@luxwarden.com"):
+                valid = validate_email(email, check_deliverability=False)
+            # For everyone else, strictly check the internet for a real email server
+            else:
+                valid = validate_email(email, check_deliverability=True)
+                
+            email = valid.normalized
+            
+        except EmailNotValidError as e:
+            return render_template("register.html", error=str(e), old=old)
+        # 4. Phone Validation
+        if not phone.isdigit() or len(phone) != 10:
+            return render_template("register.html", error="Mobile number must be exactly 10 digits", old=old)
+
+        # 5. Password Validation (Match, Length, Complexity)
         if password != confirm_password:
             return render_template("register.html", error="Passwords do not match", old=old)
 
+        if len(password) < 8:
+            return render_template("register.html", error="Password must be at least 8 characters long", old=old)
+
+        password_pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])'
+        if not re.search(password_pattern, password):
+            return render_template(
+                "register.html",
+                error="Password must contain at least one uppercase letter, one number, and one special character",
+                old=old
+            )
+
+        # 6. Hash Password (Only happens if all validations pass)
         hashed_password = generate_password_hash(password)
 
+        # --- Admin and Payment Logic ---
         is_admin = 0
         is_paid = 0
         
@@ -206,6 +243,7 @@ def register():
             is_admin = 1
             is_paid = 1  
 
+        # --- Database Insertion ---
         try:
             db = get_db_connection()
             cursor = db.cursor()
@@ -220,7 +258,8 @@ def register():
                 "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, is_paid) VALUES (%s, %s, %s, %s, 'active', %s, %s)",
                 (full_name, email, phone, hashed_password, is_admin, is_paid)
             )
-            # 🛠️ FIXED: Get the new user ID and redirect to payment
+            
+            # Get the new user ID and redirect appropriately
             new_user_id = cursor.lastrowid
             db.commit()
             cursor.close()
@@ -230,9 +269,8 @@ def register():
                 session["success_message"] = "Admin Registration successful! Please sign in."
                 return redirect(url_for("signin"))
             else:
-                session["pending_payment_user_id"] = new_user_id 
-                session["error_message"] = "Registration successful! Please complete your payment to activate your account."
-                return redirect(url_for("payment"))
+               session["error_message"] = "Registration successful! Please sign in to complete your payment."
+               return redirect(url_for("signin"))
 
         except Exception as e:
             return render_template("register.html", error=f"Error: {str(e)}", old=old)
