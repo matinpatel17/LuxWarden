@@ -196,19 +196,35 @@ def register():
         if re.search(r'\d', full_name):
             return render_template("register.html", error="Name cannot contain numbers", old=old)
 
-        # 3. Email Deliverability Validation
+        
+        # 3. Email Validation 
         try:
-            # 🛠️ VIP Bypass: If it is your admin domain, skip the internet check
-            if email.endswith("@luxwarden.com"):
-                valid = validate_email(email, check_deliverability=False)
-            # For everyone else, strictly check the internet for a real email server
-            else:
-                valid = validate_email(email, check_deliverability=True)
-                
+            # Step A: Check the format (e.g., text@text.com)
+            valid = validate_email(email, check_deliverability=False)
             email = valid.normalized
+            email_domain = valid.domain  # Automatically extracts the domain
+
+            # Step B: The VIP Allowlist (Only these domains are allowed!)
+            allowed_domains = [
+                "gmail.com", 
+                "yahoo.com", 
+                "outlook.com", 
+                "hotmail.com", 
+                "icloud.com",
+                "luxwarden.com"  # NEVER remove this!
+            ]
             
-        except EmailNotValidError as e:
-            return render_template("register.html", error=str(e), old=old)
+           # Step C: Instantly block anything not on the list, and show them what they typed!
+            if email_domain not in allowed_domains:
+                return render_template(
+                    "register.html", 
+                    # 🛠️ The f-string dynamically inserts the bad domain they typed
+                    error=f"Registration denied for '{email_domain}'. Please use a trusted provider like @gmail.com, @yahoo.com, or @outlook.com.", 
+                    old=old
+                )
+                
+        except EmailNotValidError:
+            return render_template("register.html", error="Please enter a valid email address.", old=old)
         # 4. Phone Validation
         if not phone.isdigit() or len(phone) != 10:
             return render_template("register.html", error="Mobile number must be exactly 10 digits", old=old)
