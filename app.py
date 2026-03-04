@@ -131,6 +131,15 @@ def admin_dashboard():
     cursor.execute("SELECT * FROM contact_messages")
     messages = cursor.fetchall()
 
+    # Fetch custom report requests
+    cursor.execute("""
+        SELECT cr.*, u.full_name, u.email 
+        FROM custom_report_requests cr 
+        JOIN users u ON cr.user_id = u.id 
+        ORDER BY cr.status = 'Pending' DESC, cr.created_at DESC
+    """)
+    custom_reports = cursor.fetchall()
+
     cursor.close()
     db.close()
 
@@ -138,7 +147,81 @@ def admin_dashboard():
                            customers=customers, 
                            payments=payments, 
                            tickets=tickets,
-                           messages=messages)
+                           messages=messages,
+                           custom_reports=custom_reports)
+
+@app.route("/admin/send_custom_report/<int:request_id>", methods=["POST"])
+def send_custom_report(request_id):
+    # Ensure only admins can do this
+    if "user_id" not in session or not session.get("is_admin"):
+        return redirect(url_for("signin"))
+
+    # 1. Grab the uploaded file from the form
+    if 'report_pdf' not in request.files:
+        flash("No file was uploaded.")
+        return redirect(url_for('admin_dashboard'))
+        
+    file = request.files['report_pdf']
+    
+    if file.filename == '':
+        flash("No file was selected.")
+        return redirect(url_for('admin_dashboard'))
+
+    if not file.filename.lower().endswith('.pdf'):
+        flash("Please upload a valid PDF file.")
+        return redirect(url_for('admin_dashboard'))
+
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    
+    # 2. Fetch the user's email and details
+    cursor.execute("""
+        SELECT cr.user_id, u.email, u.full_name 
+        FROM custom_report_requests cr 
+        JOIN users u ON cr.user_id = u.id 
+        WHERE cr.id = %s
+    """, (request_id,))
+    req_data = cursor.fetchone()
+    
+    if not req_data:
+        flash("Report request not found.")
+        cursor.close()
+        db.close()
+        return redirect(url_for('admin_dashboard'))
+        
+    email = req_data['email']
+    full_name = req_data['full_name']
+    
+    # 3. Read the uploaded file and attach it to the email
+    try:
+        # Read the file data into memory
+        pdf_data = file.read()
+        
+        msg = Message('Your Custom LuxWarden Security Report', 
+                      sender=os.getenv('MAIL_USERNAME'), 
+                      recipients=[email])
+        
+        msg.body = f"Hello {full_name},\n\nPlease find attached the custom security report you requested from your LuxWarden dashboard.\n\nBest regards,\nThe LuxWarden Team"
+        
+        # Attach the file using the original filename
+        msg.attach(file.filename, "application/pdf", pdf_data)
+        
+        # Send the email
+        mail.send(msg)
+        
+        # 4. Mark request as Completed in the database
+        cursor.execute("UPDATE custom_report_requests SET status = 'Completed' WHERE id = %s", (request_id,))
+        db.commit()
+        
+        flash(f"✅ Custom report successfully emailed to {email}.")
+        
+    except Exception as e:
+        flash(f"⚠️ Failed to send email: {str(e)}")
+    finally:
+        cursor.close()
+        db.close()
+    
+    return redirect(url_for('admin_dashboard'))
 
 @app.route("/admin/toggle_user/<int:user_id>", methods=["POST"])
 @admin_required
@@ -196,35 +279,13 @@ def register():
         if re.search(r'\d', full_name):
             return render_template("register.html", error="Name cannot contain numbers", old=old)
 
-        
-        # 3. Email Validation 
+        # 3. Email Validation (Extracted from Code 1)
         try:
-            # Step A: Check the format (e.g., text@text.com)
-            valid = validate_email(email, check_deliverability=False)
+            valid = validate_email(email, check_deliverability=True)
             email = valid.normalized
-            email_domain = valid.domain  # Automatically extracts the domain
+        except EmailNotValidError as e:
+            return render_template("register.html", error=str(e), old=old)
 
-            # Step B: The VIP Allowlist (Only these domains are allowed!)
-            allowed_domains = [
-                "gmail.com", 
-                "yahoo.com", 
-                "outlook.com", 
-                "hotmail.com", 
-                "icloud.com",
-                "luxwarden.com"  # NEVER remove this!
-            ]
-            
-           # Step C: Instantly block anything not on the list, and show them what they typed!
-            if email_domain not in allowed_domains:
-                return render_template(
-                    "register.html", 
-                    # 🛠️ The f-string dynamically inserts the bad domain they typed
-                    error=f"Registration denied for '{email_domain}'. Please use a trusted provider like @gmail.com, @yahoo.com, or @outlook.com.", 
-                    old=old
-                )
-                
-        except EmailNotValidError:
-            return render_template("register.html", error="Please enter a valid email address.", old=old)
         # 4. Phone Validation
         if not phone.isdigit() or len(phone) != 10:
             return render_template("register.html", error="Mobile number must be exactly 10 digits", old=old)
@@ -244,12 +305,12 @@ def register():
                 old=old
             )
 
-        # 6. Hash Password (Only happens if all validations pass)
+        plan_input = request.form.get("plan", "free") # Get chosen plan
+
         hashed_password = generate_password_hash(password)
 
-        # --- Admin and Payment Logic ---
         is_admin = 0
-        is_paid = 0
+        plan_type = plan_input
         
         system_secret = os.getenv("ADMIN_SECRET_CODE")
         code_match = (system_secret and admin_code_input == system_secret)
@@ -257,9 +318,8 @@ def register():
 
         if code_match or domain_match:
             is_admin = 1
-            is_paid = 1  
+            plan_type = 'pro'
 
-        # --- Database Insertion ---
         try:
             db = get_db_connection()
             cursor = db.cursor()
@@ -270,12 +330,26 @@ def register():
                 db.close()
                 return render_template("register.html", error="Email already registered", old=old)
 
-            cursor.execute(
-                "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, is_paid) VALUES (%s, %s, %s, %s, 'active', %s, %s)",
-                (full_name, email, phone, hashed_password, is_admin, is_paid)
-            )
-            
-            # Get the new user ID and redirect appropriately
+            # --- UPDATED INSERTION LOGIC ---
+            if is_admin:
+                cursor.execute(
+                    "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, plan_type, plan_expiry) VALUES (%s, %s, %s, %s, 'active', %s, %s, DATE_ADD(NOW(), INTERVAL 10 YEAR))",
+                    (full_name, email, phone, hashed_password, is_admin, plan_type)
+                )
+            elif plan_type == 'free':
+                # Free trial gets 7 days
+                cursor.execute(
+                    "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, plan_type, plan_expiry) VALUES (%s, %s, %s, %s, 'active', 0, 'free', DATE_ADD(NOW(), INTERVAL 7 DAY))",
+                    (full_name, email, phone, hashed_password)
+                )
+            else:
+                # Pro plan gets 0 days until paid
+                cursor.execute(
+                    "INSERT INTO users (full_name, email, phone_number, password, status, is_admin, plan_type, plan_expiry) VALUES (%s, %s, %s, %s, 'active', 0, 'pro', NOW())",
+                    (full_name, email, phone, hashed_password)
+                )
+            # -------------------------------
+
             new_user_id = cursor.lastrowid
             db.commit()
             cursor.close()
@@ -285,8 +359,8 @@ def register():
                 session["success_message"] = "Admin Registration successful! Please sign in."
                 return redirect(url_for("signin"))
             else:
-               session["error_message"] = "Registration successful! Please sign in to complete your payment."
-               return redirect(url_for("signin"))
+                session["success_message"] = "Registration successful! Please sign in to continue."
+                return redirect(url_for("signin"))
 
         except Exception as e:
             return render_template("register.html", error=f"Error: {str(e)}", old=old)
@@ -307,8 +381,9 @@ def signin():
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
+        # UPDATED SQL QUERY
         cursor.execute(
-            "SELECT id, full_name, password, is_paid, is_admin, status FROM users WHERE email = %s",
+            "SELECT id, full_name, password, is_admin, status, plan_type, plan_expiry FROM users WHERE email = %s",
             (email,)
         )
         user = cursor.fetchone()
@@ -328,16 +403,17 @@ def signin():
         session["user_id"] = user["id"]
         session["user_name"] = user["full_name"]
         session["logged_in"] = True
-        session["is_paid"] = bool(user["is_paid"])
         session["is_admin"] = bool(user["is_admin"]) 
+        session["plan_type"] = user["plan_type"]
         
         if session["is_admin"]:
             return redirect(url_for("admin_dashboard"))
 
-        if session["is_paid"]:
+        # --- NEW REDIRECT LOGIC ---
+        if user["plan_expiry"] and user["plan_expiry"] > datetime.now():
             return redirect(url_for("dashboard"))
         else:
-            session["error_message"] = "Please complete payment to access dashboard."
+            session["success_message"] = "You need to complete payment to access the Pro dashboard."
             return redirect(url_for("payment"))
 
     success_msg = session.pop("success_message", None)
@@ -435,6 +511,25 @@ def generate_report():
     return Response(pdf_output, mimetype='application/pdf', 
                     headers={'Content-Disposition': f'attachment;filename=report.pdf'})
 
+@app.route("/request_custom_report", methods=["POST"])
+def request_custom_report():
+    if "user_id" not in session: return redirect(url_for("signin"))
+    requirements = request.form.get("requirements")
+    
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO custom_report_requests (user_id, requirements) VALUES (%s, %s)", (session["user_id"], requirements))
+        db.commit()
+        flash("✅ Custom report request submitted! Our team will email it to you shortly.")
+    except Exception as e:
+        flash(f"Error submitting request: {str(e)}")
+    finally:
+        cursor.close()
+        db.close()
+        
+    return redirect(url_for("dashboard"))
+
 # --- 🛡️ USER DASHBOARD ROUTES ---
 @app.route("/dashboard")
 def dashboard():
@@ -442,6 +537,16 @@ def dashboard():
 
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
+
+    # --- NEW: Check Expiry on Dashboard Load ---
+    cursor.execute("SELECT plan_expiry FROM users WHERE id = %s", (session["user_id"],))
+    user_plan = cursor.fetchone()
+    if not user_plan or user_plan['plan_expiry'] < datetime.now():
+        db.close()
+        session["error_message"] = "Your plan has expired. Please subscribe to continue."
+        return redirect(url_for("payment"))
+    # -------------------------------------------
+
      # 1. Fetch Domains
     cursor.execute("""
         SELECT d.*, r.block_sqli, r.block_xss, r.block_ip 
@@ -546,28 +651,48 @@ def create_ticket():
 @app.route("/add_domain", methods=["POST"])
 def add_domain():
     if "user_id" not in session: return redirect(url_for("signin"))
+    
     domain_name = request.form.get("domain_name")
     target_url = request.form.get("target_url")
-     # Generate a unique proxy slug
     proxy_slug = f"{session['user_id']}-{secrets.token_hex(4)}"
 
     try:
         db = get_db_connection()
-        cursor = db.cursor()
+        cursor = db.cursor(dictionary=True)
 
-         # 1. Insert Domain
+        # --- 1. NEW: Check Domain Limits ---
+        # Get the current number of domains this user has
+        cursor.execute("SELECT COUNT(*) as domain_count FROM domains WHERE user_id = %s", (session["user_id"],))
+        result = cursor.fetchone()
+        current_count = result['domain_count']
+        
+        # Determine their limit based on their plan
+        plan_type = session.get("plan_type", "free")
+        max_domains = 2 if plan_type == "pro" else 1
+        
+        # Block addition if limit is reached
+        if current_count >= max_domains:
+            db.close()
+            flash(f"⚠️ Limit reached: Your {plan_type.title()} Plan allows a maximum of {max_domains} domain(s). Please upgrade to add more.")
+            return redirect(url_for("dashboard"))
+        # -----------------------------------
+
+        # 2. Insert Domain (Switching back to standard cursor for inserts)
+        cursor = db.cursor()
         cursor.execute("INSERT INTO domains (user_id, domain_name, target_url, proxy_url) VALUES (%s, %s, %s, %s)",
         (session["user_id"], domain_name, target_url, proxy_slug))
         domain_id = cursor.lastrowid
 
-         # 2. Insert Default Rules
+        # 3. Insert Default Rules
         cursor.execute("INSERT INTO firewall_rules (domain_id, block_sqli, block_xss) VALUES (%s, 0, 0)", (domain_id,))
+        
         db.commit()
-        cursor.close()
-        db.close()
-        flash("Domain added successfully!")
+        flash("✅ Domain added successfully!")
     except Exception as e:
         flash(f"Error: {str(e)}")
+    finally:
+        cursor.close()
+        db.close()
         
     return redirect(url_for("dashboard"))
 
@@ -913,13 +1038,19 @@ def payment():
                 card_expiry, cvv_hash
             ))
 
-            cursor.execute("UPDATE users SET is_paid = 1 WHERE id = %s", (user_id,))
+            # --- UPDATED: Extend plan by 30 days ---
+            cursor.execute("""
+                UPDATE users 
+                SET plan_type = 'pro', plan_expiry = DATE_ADD(NOW(), INTERVAL 30 DAY) 
+                WHERE id = %s
+            """, (user_id,))
+            # ---------------------------------------
 
             db.commit()
             cursor.close()
             db.close()
 
-            session["is_paid"] = True
+            session["plan_type"] = "pro"
             return redirect(url_for("dashboard"))
 
         except Exception as e:

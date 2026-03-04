@@ -141,8 +141,8 @@
 
     <main class="main-content">
         <div class="header">
-            <div><h1><span id="page-title">Dashboard</span></h1><p style="color: var(--text-muted); font-size: 0.9rem;">Welcome back, {{ session['user_name'] }}.</p></div>
-            <div class="user-profile"><div class="user-info"><span class="user-name">{{ session['user_name'] }}</span><span class="user-role">{% if session['is_paid'] %}Premium{% else %}Basic{% endif %} Plan</span></div><div class="user-avatar"><i class="fa-solid fa-user"></i></div></div>
+            <div><h1><span id="page-title">Dashboard</span></h1><p style="color: var(--text-muted); font-size: 0.9rem;">Welcome, {{ session['user_name'] }}.</p></div>
+            <div class="user-profile"><div class="user-info"><span class="user-name">{{ session['user_name'] }}</span><span class="user-role">{% if session['plan_type'] == 'pro' %}Pro{% else %}Free Trial{% endif %} Plan</span></div><div class="user-avatar"><i class="fa-solid fa-user"></i></div></div>
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -297,6 +297,16 @@
                     <div class="stat-box" style="color: var(--success);"><i class="fa-solid fa-file-pdf"></i></div>
                     <h3>Monthly Report</h3><p>Download last 30 days</p>
                 </a>
+            </div>
+
+            <div class="glass-panel" style="margin-top: 30px;">
+                <h3>Request Custom Report</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Need specific data? Describe your requirements (e.g., "Logs for the last 3 months for domain X") and our admins will email a tailored PDF directly to you.</p>
+                <form action="{{ url_for('request_custom_report') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea name="requirements" class="form-control" rows="4" placeholder="Describe your custom report requirements here..." required></textarea>
+                    <button type="submit" class="btn-primary" style="margin-top: 15px;">Submit Request</button>
+                </form>
             </div>
         </section>
     </main>

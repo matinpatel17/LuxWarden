@@ -117,3 +117,18 @@ ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
 -- 2. CRITICAL: Update Support Tickets to allow 'Resolved' status
 -- (Without this, the "Mark Resolved" button will crash your app)
 ALTER TABLE support_tickets MODIFY COLUMN status ENUM('Open', 'In Progress', 'Resolved', 'Closed') DEFAULT 'Open';
+
+
+-- 3. Update your database 
+ALTER TABLE users ADD COLUMN plan_type ENUM('free', 'pro') DEFAULT 'free';
+ALTER TABLE users ADD COLUMN plan_expiry DATETIME NULL;
+
+-- 4. add a new table for custom reports
+CREATE TABLE custom_report_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    requirements TEXT NOT NULL,
+    status ENUM('Pending', 'Completed') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

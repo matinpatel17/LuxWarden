@@ -108,7 +108,7 @@
                 <h3 class="plan-name">Basic</h3>
                 <div class="price">₹0 <span class="period">/Free for One week</span></div>
                 
-                <a href="#" class="btn-price-basic">Try Now</a>
+                <a href="{{ url_for('register', plan='free') }}" class="btn-price-basic">Try Now</a>
 
                 <ul class="features-list">
                     <li><i class="fa-regular fa-circle-check"></i> SQL Injection</li>
@@ -121,7 +121,7 @@
                 <h3 class="plan-name highlight">Pro</h3>
                 <div class="price">₹499 <span class="period">/Month</span></div>
                 
-                <a href="{{ url_for('payment') }}" class="btn-price-pro">Subscribe</a>
+                <a href="{{ url_for('register', plan='pro') }}" class="btn-price-pro">Subscribe</a>
 
                 <ul class="features-list">
                     <li><i class="fa-solid fa-shield-halved"></i> SQL Injection</li>

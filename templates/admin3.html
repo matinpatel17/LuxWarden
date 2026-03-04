@@ -283,6 +283,47 @@
                     </div>
                 </div>
             </div>
+            <div class="glass-panel" style="margin-top: 30px;">
+                <h3>Custom Report Requests</h3>
+                <div style="overflow-x: auto;">
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Requirements</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in custom_reports %}
+                            <tr class="{% if loop.index is even %}highlight-row{% endif %}">
+                                <td><strong>{{ req.full_name }}</strong><br><small style="color: var(--text-muted);">{{ req.email }}</small></td>
+                                <td style="max-width: 300px;">{{ req.requirements }}<br><small style="color: var(--text-muted);">Requested: {{ req.created_at.strftime('%Y-%m-%d') }}</small></td>
+                                <td><span class="badge {% if req.status == 'Pending' %}badge-inactive{% else %}badge-active{% endif %}">{{ req.status }}</span></td>
+                                <td>
+                                    {% if req.status == 'Pending' %}
+                                        <form action="{{ url_for('send_custom_report', request_id=req.id) }}" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 8px;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            
+                                            <input type="file" name="report_pdf" accept=".pdf" required class="form-control" style="font-size: 0.8rem; padding: 4px; background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;">
+                                            
+                                            <button type="submit" class="badge badge-active" style="border:none; cursor:pointer; background: var(--accent-color); color: white; padding: 6px 10px;">
+                                                <i class="fa-solid fa-paper-plane"></i> Upload & Email
+                                            </button>
+                                        </form>
+                                        {% else %}
+                                        <span style="color: var(--success);"><i class="fa-solid fa-check"></i> Sent</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" style="text-align: center; color: #aaa;">No custom requests found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div id="payment" class="dashboard-section">

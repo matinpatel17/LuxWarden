@@ -24,27 +24,35 @@ def inspect_request(request, domain_rules):
     Analyzes the incoming request for malicious patterns.
     """
     
-    # 1. Extract ONLY the raw values
     payloads = []
     
-    # Get URL parameters (?id=...)
+    # 1. NEW: Check the URL Path itself (e.g., /proxy/1/UNION SELECT)
+    payloads.append(request.path)
+    
+    # 2. Get URL parameters (?id=...)
     payloads.extend(request.args.values())
     
-    # Get Form data (POST requests)
+    # 3. Get Form data AND Raw JSON bodies (POST/PUT requests)
     if request.method in ["POST", "PUT"]:
+        # Standard HTML form data
         payloads.extend(request.form.values())
         
-    # Get Cookies and User-Agent
+        # NEW: Catch raw JSON, XML, or plain text bodies
+        raw_data = request.get_data(as_text=True)
+        if raw_data:
+            payloads.append(raw_data)
+            
+    # 4. Get Cookies and User-Agent
     payloads.extend(request.cookies.values())
     payloads.append(request.headers.get('User-Agent', ''))
 
-    # 2. Join, lowercase, and decode (turns %3C back into <)
+    # Join, lowercase, and decode (turns %3C back into <)
     raw_payload = " ".join(str(p) for p in payloads).lower()
     decoded_payload = urllib.parse.unquote(raw_payload)
     
     full_payload = raw_payload + " " + decoded_payload
 
-    # 3. Check rules strictly
+    # Check rules strictly
     block_sqli = int(domain_rules.get('block_sqli', 0))
     block_xss = int(domain_rules.get('block_xss', 0))
 
