@@ -538,14 +538,15 @@ def dashboard():
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
 
-    # --- NEW: Check Expiry on Dashboard Load ---
-    cursor.execute("SELECT plan_expiry FROM users WHERE id = %s", (session["user_id"],))
-    user_plan = cursor.fetchone()
-    if not user_plan or user_plan['plan_expiry'] < datetime.now():
+    # --- UPDATED: Fetch ALL User Details ---
+    cursor.execute("SELECT * FROM users WHERE id = %s", (session["user_id"],))
+    user_details = cursor.fetchone()
+    
+    if not user_details or user_details['plan_expiry'] < datetime.now():
         db.close()
         session["error_message"] = "Your plan has expired. Please subscribe to continue."
         return redirect(url_for("payment"))
-    # -------------------------------------------
+    # ---------------------------------------
 
      # 1. Fetch Domains
     cursor.execute("""
@@ -555,6 +556,7 @@ def dashboard():
         WHERE d.user_id = %s
     """, (session["user_id"],))
     domains = cursor.fetchall()
+    
     # 2. Fetch Recent Attacks (Logs)
     cursor.execute("""
         SELECT l.*, d.domain_name 
@@ -564,6 +566,7 @@ def dashboard():
         ORDER BY l.timestamp DESC LIMIT 10
     """, (session["user_id"],))
     logs = cursor.fetchall()
+    
     # 3. Fetch Blocked IPs
     cursor.execute("""
         SELECT b.*, d.domain_name 
@@ -573,6 +576,7 @@ def dashboard():
         ORDER BY b.added_at DESC
     """, (session["user_id"],))
     blocked_ips = cursor.fetchall()
+    
      # 4. Fetch Support Tickets
     cursor.execute("""
         SELECT * FROM support_tickets 
@@ -581,11 +585,10 @@ def dashboard():
     """, (session["user_id"],))
     tickets = cursor.fetchall()
     
-     # --- NEW: ADVANCED STATISTICS QUERIES ---
-    
-    # Attack Type Distribution
+     # --- ADVANCED STATISTICS QUERIES ---
     cursor.execute("SELECT attack_type, COUNT(*) as count FROM attack_logs l JOIN domains d ON l.domain_id = d.id WHERE d.user_id = %s GROUP BY attack_type", (session["user_id"],))
     type_stats = cursor.fetchall()
+    
      # Geographic Threat Sources
     cursor.execute("""
         SELECT country, COUNT(*) as count 
@@ -595,6 +598,7 @@ def dashboard():
         GROUP BY country ORDER BY count DESC LIMIT 5
     """, (session["user_id"],))
     geo_stats = cursor.fetchall()
+    
      # 7-Day Trend
     cursor.execute("""
         SELECT DATE(timestamp) as date, COUNT(*) as count 
@@ -614,6 +618,7 @@ def dashboard():
                            logs=logs, 
                            blocked_ips=blocked_ips,
                            tickets=tickets,
+                           user_details=user_details, # <-- NEW: Pass details to template
                            chart_labels=[r['attack_type'] for r in type_stats], 
                            chart_values=[r['count'] for r in type_stats],
                            geo_labels=[r['country'] for r in geo_stats],

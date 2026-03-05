@@ -1,5 +1,5 @@
 -- Parent Tables (users, domains)
--- Child tables (attack_logs, blocked_ips, firewall_rules, payments, support_tickets)
+-- Child tables (attack_logs, blocked_ips, firewall_rules, payments, support_tickets, custom_report_request)
 -- Independent table (contact_messages)
 
 DROP TABLE IF EXISTS `users`;
