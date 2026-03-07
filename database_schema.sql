@@ -132,3 +132,7 @@ CREATE TABLE custom_report_requests (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- 5. Add these new colomns for MFA
+ALTER TABLE users ADD COLUMN mfa_secret VARCHAR(32) DEFAULT NULL;
+ALTER TABLE users ADD COLUMN mfa_enabled TINYINT(1) DEFAULT 0;

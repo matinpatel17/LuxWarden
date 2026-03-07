@@ -16,7 +16,7 @@ from itsdangerous import URLSafeTimedSerializer
 from bs4 import BeautifulSoup
 from fpdf import FPDF
 from functools import wraps 
-import io
+import pyotp, qrcode, io
 from waf import inspect_request, get_country 
 # --- IMPORT FIREWALL LOGIC ---
 try:
@@ -381,9 +381,8 @@ def signin():
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
-        # UPDATED SQL QUERY
         cursor.execute(
-            "SELECT id, full_name, password, is_admin, status, plan_type, plan_expiry FROM users WHERE email = %s",
+            "SELECT id, full_name, password, is_admin, status, plan_type, plan_expiry, mfa_enabled, mfa_secret FROM users WHERE email = %s",
             (email,)
         )
         user = cursor.fetchone()
@@ -399,6 +398,13 @@ def signin():
         if not check_password_hash(user["password"], password):
             return render_template("signin.html", error="Incorrect password.", old=old)
 
+        # --- MFA INTERCEPT ---
+        if user.get("mfa_enabled") == 1:
+            session.clear()
+            session["temp_user_id"] = user["id"]
+            return redirect(url_for("verify_mfa"))
+        # ---------------------
+
         session.clear()
         session["user_id"] = user["id"]
         session["user_name"] = user["full_name"]
@@ -409,7 +415,6 @@ def signin():
         if session["is_admin"]:
             return redirect(url_for("admin_dashboard"))
 
-        # --- NEW REDIRECT LOGIC ---
         if user["plan_expiry"] and user["plan_expiry"] > datetime.now():
             return redirect(url_for("dashboard"))
         else:
@@ -420,6 +425,96 @@ def signin():
     error_msg = session.pop("error_message", None)
     
     return render_template("signin.html", success=success_msg, error=error_msg, old={})
+
+@app.route("/verify_mfa", methods=["GET", "POST"])
+def verify_mfa():
+    if "temp_user_id" not in session:
+        return redirect(url_for("signin"))
+        
+    if request.method == "POST":
+        token = request.form.get("token", "").strip()
+        
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE id = %s", (session["temp_user_id"],))
+        user = cursor.fetchone()
+        cursor.close()
+        db.close()
+        
+        totp = pyotp.TOTP(user["mfa_secret"])
+        if totp.verify(token):
+            # MFA Passed - Complete Login
+            session.clear()
+            session["user_id"] = user["id"]
+            session["user_name"] = user["full_name"]
+            session["logged_in"] = True
+            session["is_admin"] = bool(user["is_admin"]) 
+            session["plan_type"] = user["plan_type"]
+            
+            if session["is_admin"]:
+                return redirect(url_for("admin_dashboard"))
+            elif user["plan_expiry"] and user["plan_expiry"] > datetime.now():
+                return redirect(url_for("dashboard"))
+            else:
+                session["success_message"] = "You need to complete payment to access the Pro dashboard."
+                return redirect(url_for("payment"))
+        else:
+            return render_template("mfa_verify.html", error="Invalid authentication code. Please try again.")
+
+    return render_template("mfa_verify.html")
+
+@app.route("/setup_mfa", methods=["GET", "POST"])
+def setup_mfa():
+    if "user_id" not in session: 
+        return redirect(url_for("signin"))
+    
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT email, mfa_enabled FROM users WHERE id = %s", (session["user_id"],))
+    user = cursor.fetchone()
+    
+    if user['mfa_enabled']:
+        flash("MFA is already enabled on your account.")
+        return redirect(url_for("dashboard"))
+        
+    if request.method == "GET":
+        # Generate new secret for the user
+        secret = pyotp.random_base32()
+        session['mfa_setup_secret'] = secret
+        
+        # Generate QR code URL
+        totp = pyotp.TOTP(secret)
+        provisioning_uri = totp.provisioning_uri(name=user['email'], issuer_name="LuxWarden")
+        
+        # Create QR code image
+        img = qrcode.make(provisioning_uri)
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        qr_code_img = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        
+        return render_template("setup_mfa.html", qr_code=qr_code_img, secret=secret)
+        
+    elif request.method == "POST":
+        token = request.form.get("token", "").strip()
+        secret = session.get('mfa_setup_secret')
+        
+        if not secret:
+            return redirect(url_for("setup_mfa"))
+            
+        totp = pyotp.TOTP(secret)
+        if totp.verify(token):
+            # Validated successfully, save to DB
+            cursor.execute("UPDATE users SET mfa_secret = %s, mfa_enabled = 1 WHERE id = %s", (secret, session["user_id"]))
+            db.commit()
+            session.pop('mfa_setup_secret', None)
+            flash("✅ Multi-Factor Authentication has been successfully enabled!")
+            return redirect(url_for("dashboard"))
+        else:
+            flash("❌ Invalid code. Please scan the QR code and try again.")
+            return redirect(url_for("setup_mfa"))
+    
+    cursor.close()
+    db.close()
 
 @app.route("/logout")
 def logout():
