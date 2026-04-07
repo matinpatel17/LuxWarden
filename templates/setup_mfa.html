@@ -38,7 +38,6 @@
             <button type="submit" class="btn-submit">Verify and Enable</button>
         </form>
         
-        <a href="{{ url_for('dashboard') }}" style="display: block; margin-top: 20px; color: #9ca3af; text-decoration: none; font-size: 0.9rem;">Cancel</a>
-    </div>
+        <a href="{% if session.get('is_admin') %}{{ url_for('admin_dashboard') }}{% else %}{{ url_for('dashboard') }}{% endif %}" style="display: block; margin-top: 20px; color: #9ca3af; text-decoration: none; font-size: 0.9rem;">Cancel</a>    </div>
 </body>
 </html>

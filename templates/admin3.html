@@ -203,6 +203,7 @@
         <div class="menu-item" onclick="switchTab('support', this)"><i class="fa-solid fa-headset"></i> Support</div>
         <div class="menu-item" onclick="switchTab('inbox', this)"><i class="fa-solid fa-envelope"></i> Messages</div>
         <div style="margin-top: auto;">
+            <a href="{{ url_for('setup_mfa') }}" class="menu-item" style="color: var(--accent-color);"><i class="fa-solid fa-shield-halved"></i> Setup MFA</a>
             <a href="{{ url_for('logout') }}" class="menu-item" style="color: #ef4444;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </div>
     </nav>
@@ -220,6 +221,17 @@
                 </div>
                 <div class="user-avatar"><i class="fa-solid fa-user-gear"></i></div>
             </div>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                    <div style="background: rgba(139, 92, 246, 0.2); border: 1px solid var(--accent-color); padding: 15px; border-radius: 10px; margin-bottom: 20px; color: white;">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
         </div>
 
         <div id="customer" class="dashboard-section" style="display: block;">

@@ -475,6 +475,8 @@ def setup_mfa():
     
     if user['mfa_enabled']:
         flash("MFA is already enabled on your account.")
+        if session.get("is_admin"):
+            return redirect(url_for("admin_dashboard"))
         return redirect(url_for("dashboard"))
         
     if request.method == "GET":
@@ -482,9 +484,10 @@ def setup_mfa():
         secret = pyotp.random_base32()
         session['mfa_setup_secret'] = secret
         
-        # Generate QR code URL
+        # Generate QR code URL (Customize issuer for Admin)
         totp = pyotp.TOTP(secret)
-        provisioning_uri = totp.provisioning_uri(name=user['email'], issuer_name="LuxWarden")
+        issuer = "LuxWarden Admin" if session.get("is_admin") else "LuxWarden"
+        provisioning_uri = totp.provisioning_uri(name=user['email'], issuer_name=issuer)
         
         # Create QR code image
         img = qrcode.make(provisioning_uri)
@@ -508,6 +511,9 @@ def setup_mfa():
             db.commit()
             session.pop('mfa_setup_secret', None)
             flash("✅ Multi-Factor Authentication has been successfully enabled!")
+            
+            if session.get("is_admin"):
+                return redirect(url_for("admin_dashboard"))
             return redirect(url_for("dashboard"))
         else:
             flash("❌ Invalid code. Please scan the QR code and try again.")
